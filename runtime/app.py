@@ -45,6 +45,7 @@ async def startup_event():
     # Initialize Phase 1 pipeline
     try:
         phase1_pipeline = Phase1Pipeline()
+        phase1_pipeline.initialize()  # Actually load the models!
         logger.info("Phase 1 pipeline initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize pipeline: {e}")

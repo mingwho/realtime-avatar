@@ -1,0 +1,72 @@
+{
+  "version": "1.0",
+  "description": "Gold standard phrases for avatar quality validation",
+  "source_videos": {
+    "english": "../assets/videos/bruce_english.mp4",
+    "mandarin": "../assets/videos/bruce_mandarin.mp4",
+    "spanish": "../assets/videos/bruce_spanish.mp4",
+    "expressive": "../assets/videos/bruce_expressive_motion.mp4"
+  },
+  "phrases": [
+    {
+      "id": "en_001",
+      "text": "REPLACE_WITH_ACTUAL_TEXT",
+      "language": "en",
+      "source_video": "bruce_english.mp4",
+      "start_time": 0.0,
+      "end_time": 3.0,
+      "duration": 3.0,
+      "difficulty": "easy",
+      "use_case": "greeting",
+      "notes": "Short introduction phrase",
+      "clip_path": "clips/en_001.mp4"
+    },
+    {
+      "id": "en_002",
+      "text": "REPLACE_WITH_ACTUAL_TEXT",
+      "language": "en",
+      "source_video": "bruce_english.mp4",
+      "start_time": 10.0,
+      "end_time": 15.0,
+      "duration": 5.0,
+      "difficulty": "medium",
+      "use_case": "professional",
+      "notes": "Medium length professional statement",
+      "clip_path": "clips/en_002.mp4"
+    },
+    {
+      "id": "zh_001",
+      "text": "REPLACE_WITH_ACTUAL_TEXT",
+      "language": "zh",
+      "source_video": "bruce_mandarin.mp4",
+      "start_time": 0.0,
+      "end_time": 3.0,
+      "duration": 3.0,
+      "difficulty": "medium",
+      "use_case": "greeting",
+      "notes": "Chinese greeting",
+      "clip_path": "clips/zh_001.mp4"
+    },
+    {
+      "id": "es_001",
+      "text": "REPLACE_WITH_ACTUAL_TEXT",
+      "language": "es",
+      "source_video": "bruce_spanish.mp4",
+      "start_time": 0.0,
+      "end_time": 3.0,
+      "duration": 3.0,
+      "difficulty": "medium",
+      "use_case": "greeting",
+      "notes": "Spanish greeting",
+      "clip_path": "clips/es_001.mp4"
+    }
+  ],
+  "instructions": [
+    "1. Watch your source videos and identify clear phrases",
+    "2. Update each phrase with actual text spoken",
+    "3. Adjust start_time and end_time to match your videos",
+    "4. Add more phrases as needed (aim for 5-10 total)",
+    "5. Run extract_clips.py to create video clips",
+    "6. Verify clips are correct before using in tests"
+  ]
+}

@@ -1,0 +1,13 @@
+# Ignore extracted video clips (they're large and can be regenerated)
+clips/*.mp4
+clips/*.mov
+
+# Keep the directory structure
+!clips/.gitkeep
+
+# Ignore phrases.json (user-specific, use template instead)
+phrases.json
+
+# Python cache
+__pycache__/
+*.pyc
