@@ -8,6 +8,7 @@ import time
 from typing import Optional
 
 from models.tts import get_xtts_model
+from models.tts_client import get_xtts_client
 from models.avatar import get_avatar_model
 from config import settings
 
@@ -20,7 +21,14 @@ class Phase1Pipeline:
     """
     
     def __init__(self):
-        self.tts_model = get_xtts_model()
+        # Use external GPU service if enabled, otherwise local TTS
+        if settings.use_external_gpu_service:
+            logger.info("Using external GPU service for TTS")
+            self.tts_model = get_xtts_client()
+        else:
+            logger.info("Using local TTS model")
+            self.tts_model = get_xtts_model()
+        
         self.avatar_model = get_avatar_model()
         self._ready = False
     

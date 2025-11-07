@@ -12,6 +12,8 @@ services:
       - ./runtime:/app:rw
       - model-cache:/root/.cache
       - output-data:/tmp/realtime-avatar-output
+      # Mount GPU service output directory for file sharing
+      - /tmp/gpu-service-output:/tmp/gpu-service-output:rw
     environment:
       - MODE=local
       - DEVICE=cpu
@@ -19,6 +21,9 @@ services:
       - XTTS_MODEL_PATH=/root/.cache/tts_models
       - LIVEPORTRAIT_MODEL_PATH=/root/.cache/liveportrait
       - COQUI_TOS_AGREED=1
+      # GPU Service integration (for hybrid deployment)
+      - USE_EXTERNAL_GPU_SERVICE=true
+      - GPU_SERVICE_URL=http://host.docker.internal:8001
     command: python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 
   # Evaluator (runs on-demand)

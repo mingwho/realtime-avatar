@@ -142,32 +142,29 @@ async def generate_tts(request: TTSRequest):
     try:
         logger.info(f"TTS request: '{request.text[:50]}...' (language: {request.language})")
         
-        # Generate audio
-        audio_data, sample_rate = tts_model.synthesize(
-            text=request.text,
-            language=request.language,
-            speaker_wav=request.speaker_wav
-        )
-        
-        # Save to shared output directory
+        # Generate output path in shared directory
         output_dir = Path("/tmp/gpu-service-output")
         output_dir.mkdir(exist_ok=True, parents=True)
         
         timestamp = int(time.time() * 1000)
         audio_path = output_dir / f"tts_{timestamp}.wav"
         
-        import soundfile as sf
-        sf.write(str(audio_path), audio_data, sample_rate)
+        # Generate audio using TTS model
+        output_path, _, audio_duration = tts_model.synthesize(
+            text=request.text,
+            language=request.language,
+            speaker_wav=request.speaker_wav,
+            output_path=str(audio_path)
+        )
         
-        duration = len(audio_data) / sample_rate
         generation_time = (time.time() - start_time) * 1000  # ms
         
-        logger.info(f"✅ TTS complete: {duration:.2f}s audio in {generation_time:.0f}ms")
+        logger.info(f"✅ TTS complete: {audio_duration:.2f}s audio in {generation_time:.0f}ms")
         
         return TTSResponse(
             success=True,
-            audio_path=str(audio_path),
-            duration_s=duration,
+            audio_path=str(output_path),
+            duration_s=audio_duration,
             generation_time_ms=generation_time
         )
         

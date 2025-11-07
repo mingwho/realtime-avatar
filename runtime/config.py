@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     xtts_language: Literal["en", "es", "fr", "de", "it", "pt", "pl", "tr", "ru", "nl", "cs", "ar", "zh-cn", "ja", "hu", "ko"] = "en"
     default_reference_image: str = "bruce_neutral.jpg"
     
+    # GPU Service settings (for hybrid deployment)
+    gpu_service_url: str = os.getenv("GPU_SERVICE_URL", "http://host.docker.internal:8001")
+    use_external_gpu_service: bool = os.getenv("USE_EXTERNAL_GPU_SERVICE", "true").lower() == "true"
+    
     # Performance settings (adjust based on mode)
     @property
     def video_resolution(self) -> tuple[int, int]:
