@@ -1,0 +1,7 @@
+{
+  "scenario_id": "zh_medium",
+  "scenario_name": "Chinese Medium",
+  "status": "failed",
+  "error": "Client error '404 Not Found' for url 'http://runtime:8000/api/v1/videos/20251108_050413_74bff2cb_video.mp4'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+  "evaluator_total_time_s": 60.25332260131836
+}

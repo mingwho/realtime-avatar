@@ -1,0 +1,117 @@
+{
+  "timestamp": "20251107_043855",
+  "total_tests": 3,
+  "successful": 3,
+  "failed": 0,
+  "success_rate": 1.0,
+  "aggregate_metrics": {
+    "tts_ms_mean": 126193.81682078044,
+    "tts_ms_std": 5443.7891119558435,
+    "avatar_render_ms_mean": 131.37030601501465,
+    "avatar_render_ms_std": 2.4755901981409734,
+    "total_generation_ms_mean": 126325.60566666666,
+    "total_generation_ms_std": 5441.783590782983,
+    "audio_duration_s_mean": 4.46
+  },
+  "results": [
+    {
+      "scenario_id": "en_short",
+      "scenario_name": "English Short",
+      "status": "success",
+      "result": {
+        "job_id": "20251107_043230_79153858",
+        "status": "completed",
+        "message": "Video generated successfully",
+        "video_url": "/api/v1/videos/20251107_043230_79153858_video.mp4",
+        "metadata": {
+          "duration_ms": 133909.122,
+          "tts_ms": 133779.76202964783,
+          "avatar_ms": 129.0581226348877,
+          "language": "en",
+          "audio_duration_s": 4.577333333333334
+        }
+      },
+      "metrics": {
+        "tts_ms": 133779.76202964783,
+        "avatar_render_ms": 129.0581226348877,
+        "total_generation_ms": 133909.122,
+        "audio_duration_s": 4.577333333333334,
+        "language_expected": "en",
+        "language_detected": "it",
+        "language_from_text": "it",
+        "language_correctness_1_1": 0,
+        "speaker_similarity": 0.0,
+        "f0_rmse_hz": 0.0,
+        "lip_sync_coherence_0_1": 0.0,
+        "evaluator_total_time_s": 134.01479172706604
+      },
+      "video_path": "./outputs/en_short_20251107_043230_79153858.mp4"
+    },
+    {
+      "scenario_id": "zh_short",
+      "scenario_name": "Chinese Short",
+      "status": "success",
+      "result": {
+        "job_id": "20251107_043446_ca3f02ab",
+        "status": "completed",
+        "message": "Video generated successfully",
+        "video_url": "/api/v1/videos/20251107_043446_ca3f02ab_video.mp4",
+        "metadata": {
+          "duration_ms": 121399.28899999999,
+          "tts_ms": 121264.03450965881,
+          "avatar_ms": 134.80305671691895,
+          "language": "zh-cn",
+          "audio_duration_s": 4.492
+        }
+      },
+      "metrics": {
+        "tts_ms": 121264.03450965881,
+        "avatar_render_ms": 134.80305671691895,
+        "total_generation_ms": 121399.28899999999,
+        "audio_duration_s": 4.492,
+        "language_expected": "zh-cn",
+        "language_detected": "zh-cn",
+        "language_from_text": "zh-cn",
+        "language_correctness_1_1": 1,
+        "speaker_similarity": 0.0,
+        "f0_rmse_hz": 0.0,
+        "lip_sync_coherence_0_1": 0.0,
+        "evaluator_total_time_s": 121.40898609161377
+      },
+      "video_path": "./outputs/zh_short_20251107_043446_ca3f02ab.mp4"
+    },
+    {
+      "scenario_id": "es_short",
+      "scenario_name": "Spanish Short",
+      "status": "success",
+      "result": {
+        "job_id": "20251107_043649_ba32a8ab",
+        "status": "completed",
+        "message": "Video generated successfully",
+        "video_url": "/api/v1/videos/20251107_043649_ba32a8ab_video.mp4",
+        "metadata": {
+          "duration_ms": 123668.406,
+          "tts_ms": 123537.65392303467,
+          "avatar_ms": 130.2497386932373,
+          "language": "es",
+          "audio_duration_s": 4.310666666666667
+        }
+      },
+      "metrics": {
+        "tts_ms": 123537.65392303467,
+        "avatar_render_ms": 130.2497386932373,
+        "total_generation_ms": 123668.406,
+        "audio_duration_s": 4.310666666666667,
+        "language_expected": "es",
+        "language_detected": "ca",
+        "language_from_text": "ca",
+        "language_correctness_1_1": 0,
+        "speaker_similarity": 0.0,
+        "f0_rmse_hz": 0.0,
+        "lip_sync_coherence_0_1": 0.0,
+        "evaluator_total_time_s": 123.68277072906494
+      },
+      "video_path": "./outputs/es_short_20251107_043649_ba32a8ab.mp4"
+    }
+  ]
+}

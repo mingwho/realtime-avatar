@@ -1,0 +1,33 @@
+{
+  "scenario_id": "gold_es_002",
+  "scenario_name": "Gold Set: es_002",
+  "status": "success",
+  "result": {
+    "job_id": "20251108_000342_01999c3a",
+    "status": "completed",
+    "message": "Video generated successfully",
+    "video_url": "/api/v1/videos/20251108_000342_01999c3a_video.mp4",
+    "metadata": {
+      "duration_ms": 2932.525,
+      "tts_ms": 2784.48486328125,
+      "avatar_ms": 147.39990234375,
+      "language": "es",
+      "audio_duration_s": 4.918
+    }
+  },
+  "metrics": {
+    "tts_ms": 2784.48486328125,
+    "avatar_render_ms": 147.39990234375,
+    "total_generation_ms": 2932.525,
+    "audio_duration_s": 4.918,
+    "language_expected": "es",
+    "language_detected": "es",
+    "language_from_text": "es",
+    "language_correctness_1_1": 1,
+    "speaker_similarity": 0.0,
+    "f0_rmse_hz": 0.0,
+    "lip_sync_coherence_0_1": 0.0,
+    "evaluator_total_time_s": 2.9387149810791016
+  },
+  "video_path": "./outputs/gold_es_002_20251108_000342_01999c3a.mp4"
+}

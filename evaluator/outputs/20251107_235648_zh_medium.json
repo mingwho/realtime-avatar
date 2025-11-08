@@ -1,0 +1,33 @@
+{
+  "scenario_id": "zh_medium",
+  "scenario_name": "Chinese Medium",
+  "status": "success",
+  "result": {
+    "job_id": "20251107_235642_3578bdc7",
+    "status": "completed",
+    "message": "Video generated successfully",
+    "video_url": "/api/v1/videos/20251107_235642_3578bdc7_video.mp4",
+    "metadata": {
+      "duration_ms": 5725.933,
+      "tts_ms": 5554.639577865601,
+      "avatar_ms": 170.7918643951416,
+      "language": "zh-cn",
+      "audio_duration_s": 9.548666666666668
+    }
+  },
+  "metrics": {
+    "tts_ms": 5554.639577865601,
+    "avatar_render_ms": 170.7918643951416,
+    "total_generation_ms": 5725.933,
+    "audio_duration_s": 9.548666666666668,
+    "language_expected": "zh-cn",
+    "language_detected": "zh-cn",
+    "language_from_text": "zh-cn",
+    "language_correctness_1_1": 1,
+    "speaker_similarity": 0.0,
+    "f0_rmse_hz": 0.0,
+    "lip_sync_coherence_0_1": 0.0,
+    "evaluator_total_time_s": 5.734555959701538
+  },
+  "video_path": "./outputs/zh_medium_20251107_235642_3578bdc7.mp4"
+}

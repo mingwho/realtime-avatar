@@ -1,0 +1,33 @@
+{
+  "scenario_id": "es_medium",
+  "scenario_name": "Spanish Medium",
+  "status": "success",
+  "result": {
+    "job_id": "20251108_000457_3114f105",
+    "status": "completed",
+    "message": "Video generated successfully",
+    "video_url": "/api/v1/videos/20251108_000457_3114f105_video.mp4",
+    "metadata": {
+      "duration_ms": 6636.967000000001,
+      "tts_ms": 6449.757099151611,
+      "avatar_ms": 186.68198585510254,
+      "language": "es",
+      "audio_duration_s": 11.404666666666667
+    }
+  },
+  "metrics": {
+    "tts_ms": 6449.757099151611,
+    "avatar_render_ms": 186.68198585510254,
+    "total_generation_ms": 6636.967000000001,
+    "audio_duration_s": 11.404666666666667,
+    "language_expected": "es",
+    "language_detected": "es",
+    "language_from_text": "es",
+    "language_correctness_1_1": 1,
+    "speaker_similarity": 0.0,
+    "f0_rmse_hz": 0.0,
+    "lip_sync_coherence_0_1": 0.0,
+    "evaluator_total_time_s": 6.646007776260376
+  },
+  "video_path": "./outputs/es_medium_20251108_000457_3114f105.mp4"
+}

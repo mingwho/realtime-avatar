@@ -1,0 +1,33 @@
+{
+  "scenario_id": "lang_switch_en_es_es",
+  "scenario_name": "Language Switch: EN \u2192 ES - es",
+  "status": "success",
+  "result": {
+    "job_id": "20251106_234015_cd932a05",
+    "status": "completed",
+    "message": "Video generated successfully",
+    "video_url": "/api/v1/videos/20251106_234015_cd932a05_video.mp4",
+    "metadata": {
+      "duration_ms": 58672.421,
+      "tts_ms": 58561.511516571045,
+      "avatar_ms": 110.59212684631348,
+      "language": "es",
+      "audio_duration_s": 2.0806666666666667
+    }
+  },
+  "metrics": {
+    "tts_ms": 58561.511516571045,
+    "avatar_render_ms": 110.59212684631348,
+    "total_generation_ms": 58672.421,
+    "audio_duration_s": 2.0806666666666667,
+    "language_expected": "es",
+    "language_detected": "es",
+    "language_from_text": "es",
+    "language_correctness_1_1": 1,
+    "speaker_similarity": 0.0,
+    "f0_rmse_hz": 0.0,
+    "lip_sync_coherence_0_1": 0.0,
+    "evaluator_total_time_s": 58.681517601013184
+  },
+  "video_path": "./outputs/lang_switch_en_es_es_20251106_234015_cd932a05.mp4"
+}

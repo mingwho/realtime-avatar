@@ -1,0 +1,33 @@
+{
+  "scenario_id": "lang_switch_en_zh_zh-cn",
+  "scenario_name": "Language Switch: EN \u2192 ZH - zh-cn",
+  "status": "success",
+  "result": {
+    "job_id": "20251106_233713_d06e06f8",
+    "status": "completed",
+    "message": "Video generated successfully",
+    "video_url": "/api/v1/videos/20251106_233713_d06e06f8_video.mp4",
+    "metadata": {
+      "duration_ms": 52827.587999999996,
+      "tts_ms": 52715.893507003784,
+      "avatar_ms": 111.37676239013672,
+      "language": "zh-cn",
+      "audio_duration_s": 1.942
+    }
+  },
+  "metrics": {
+    "tts_ms": 52715.893507003784,
+    "avatar_render_ms": 111.37676239013672,
+    "total_generation_ms": 52827.587999999996,
+    "audio_duration_s": 1.942,
+    "language_expected": "zh-cn",
+    "language_detected": "zh-cn",
+    "language_from_text": "zh-cn",
+    "language_correctness_1_1": 1,
+    "speaker_similarity": 0.0,
+    "f0_rmse_hz": 0.0,
+    "lip_sync_coherence_0_1": 0.0,
+    "evaluator_total_time_s": 104.79890537261963
+  },
+  "video_path": "./outputs/lang_switch_en_zh_zh-cn_20251106_233713_d06e06f8.mp4"
+}

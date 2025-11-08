@@ -179,8 +179,17 @@ async def generate_video(request: ScriptRequest, background_tasks: BackgroundTas
 @app.get("/api/v1/videos/{filename}")
 async def get_video(filename: str):
     """Serve generated video file"""
-    video_path = os.path.join(settings.output_dir, filename)
+    # Check GPU service output directory first (for hybrid mode)
+    gpu_output_path = os.path.join("/tmp/gpu-service-output", filename)
+    if os.path.exists(gpu_output_path):
+        return FileResponse(
+            gpu_output_path,
+            media_type="video/mp4",
+            filename=filename
+        )
     
+    # Fallback to regular output directory
+    video_path = os.path.join(settings.output_dir, filename)
     if not os.path.exists(video_path):
         raise HTTPException(status_code=404, detail="Video not found")
     

@@ -1,0 +1,33 @@
+{
+  "scenario_id": "en_short",
+  "scenario_name": "English Short",
+  "status": "success",
+  "result": {
+    "job_id": "20251107_235611_4de2b331",
+    "status": "completed",
+    "message": "Video generated successfully",
+    "video_url": "/api/v1/videos/20251107_235611_4de2b331_video.mp4",
+    "metadata": {
+      "duration_ms": 8364.575,
+      "tts_ms": 8029.7839641571045,
+      "avatar_ms": 332.16261863708496,
+      "language": "en",
+      "audio_duration_s": 5.366666666666666
+    }
+  },
+  "metrics": {
+    "tts_ms": 8029.7839641571045,
+    "avatar_render_ms": 332.16261863708496,
+    "total_generation_ms": 8364.575,
+    "audio_duration_s": 5.366666666666666,
+    "language_expected": "en",
+    "language_detected": "it",
+    "language_from_text": "it",
+    "language_correctness_1_1": 0,
+    "speaker_similarity": 0.0,
+    "f0_rmse_hz": 0.0,
+    "lip_sync_coherence_0_1": 0.0,
+    "evaluator_total_time_s": 8.624834775924683
+  },
+  "video_path": "./outputs/en_short_20251107_235611_4de2b331.mp4"
+}

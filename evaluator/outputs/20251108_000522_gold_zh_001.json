@@ -1,0 +1,33 @@
+{
+  "scenario_id": "gold_zh_001",
+  "scenario_name": "Gold Set: zh_001",
+  "status": "success",
+  "result": {
+    "job_id": "20251108_000521_aa143941",
+    "status": "completed",
+    "message": "Video generated successfully",
+    "video_url": "/api/v1/videos/20251108_000521_aa143941_video.mp4",
+    "metadata": {
+      "duration_ms": 1390.657,
+      "tts_ms": 1264.5812034606934,
+      "avatar_ms": 125.58126449584961,
+      "language": "zh-cn",
+      "audio_duration_s": 2.038
+    }
+  },
+  "metrics": {
+    "tts_ms": 1264.5812034606934,
+    "avatar_render_ms": 125.58126449584961,
+    "total_generation_ms": 1390.657,
+    "audio_duration_s": 2.038,
+    "language_expected": "zh-cn",
+    "language_detected": "zh-cn",
+    "language_from_text": "zh-cn",
+    "language_correctness_1_1": 1,
+    "speaker_similarity": 0.0,
+    "f0_rmse_hz": 0.0,
+    "lip_sync_coherence_0_1": 0.0,
+    "evaluator_total_time_s": 1.4003629684448242
+  },
+  "video_path": "./outputs/gold_zh_001_20251108_000521_aa143941.mp4"
+}

@@ -5,9 +5,17 @@ __pycache__/
 *.so
 .Python
 venv/
+venv_gpu/  # GPU virtual environment
 env/
 ENV/
 .venv
+
+# Runtime GPU service files
+/runtime/SadTalker/  # Cloned SadTalker repository
+/runtime/models/sadtalker_model.py  # GPU-specific model wrapper
+/runtime/models/avatar_client.py  # GPU service client
+/runtime/patch_sadtalker.py  # Patching script
+/runtime/start_gpu_simple.sh  # GPU startup script
 
 # PyTorch / Model caches
 .cache/
@@ -16,12 +24,20 @@ ENV/
 *.safetensors
 
 # Output files
-/evaluator/outputs/*.json
-/evaluator/outputs/*.mp4
+/evaluator/outputs/*.mp4  # Exclude generated videos
 /runtime/outputs/
-*.mp4
 *.wav
 *.mp3
+
+# GPU service output directory
+/tmp/gpu-service-output/
+
+# Test videos (at root)
+/*_video.mp4
+
+# Original reference videos (large files)
+/originals/*.mp4
+/assets/videos/*.mp4
 
 # Environment
 .env
@@ -60,5 +76,5 @@ build/
 .eslintcache
 
 # Keep certain directories but ignore contents
-/evaluator/outputs/*
-!/evaluator/outputs/.gitkeep
+/evaluator/outputs/*.mp4  # Exclude video files
+!/evaluator/outputs/*.json  # Include JSON test results

@@ -1,0 +1,33 @@
+{
+  "scenario_id": "zh_short",
+  "scenario_name": "Chinese Short",
+  "status": "success",
+  "result": {
+    "job_id": "20251107_035101_bd806cd6",
+    "status": "completed",
+    "message": "Video generated successfully",
+    "video_url": "/api/v1/videos/20251107_035101_bd806cd6_video.mp4",
+    "metadata": {
+      "duration_ms": 114315.28199999999,
+      "tts_ms": 114184.9958896637,
+      "avatar_ms": 129.96196746826172,
+      "language": "zh-cn",
+      "audio_duration_s": 4.310666666666667
+    }
+  },
+  "metrics": {
+    "tts_ms": 114184.9958896637,
+    "avatar_render_ms": 129.96196746826172,
+    "total_generation_ms": 114315.28199999999,
+    "audio_duration_s": 4.310666666666667,
+    "language_expected": "zh-cn",
+    "language_detected": "zh-cn",
+    "language_from_text": "zh-cn",
+    "language_correctness_1_1": 1,
+    "speaker_similarity": 0.0,
+    "f0_rmse_hz": 0.0,
+    "lip_sync_coherence_0_1": 0.0,
+    "evaluator_total_time_s": 114.32280158996582
+  },
+  "video_path": "./outputs/zh_short_20251107_035101_bd806cd6.mp4"
+}
