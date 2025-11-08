@@ -2,29 +2,36 @@
 
 ## Project Summary
 
-**Status:** ✅ **PHASE 1 COMPLETE + GPU ACCELERATED** ✅  
+**Status:** ✅ **PHASE 1 COMPLETE + GPU ACCELERATED + GOLD SET VALIDATED** ✅  
 **Date:** November 7, 2025  
 **Phase:** 1 (Script → Video MVP with M3 MPS Acceleration)  
 **Lines of Code:** 2,100+  
 **Architecture:** Hybrid Docker + Native GPU Service  
 
-## 🚀 Latest Update (Nov 7, 2025) - GPU Acceleration
+## 🚀 Latest Update (Nov 7, 2025) - Gold Set Tests Complete!
 
-### 🎯 Major Achievement: 17x Faster + 100% Success Rate!
-- **Previous (CPU):** 95.9s avg TTS, 69% success rate, 4 timeouts
-- **Now (M3 MPS):** 5.7s avg TTS, 100% success rate, 0 timeouts
-- **Performance:** Faster than realtime (0.7x) on average
+### 🎯 Major Achievement: 100% Success on Real Voice Samples!
+- **Full Test Suite:** 12 tests (6 Phase 1 + 6 Gold Set from actual videos)
+- **Success Rate:** 100% (12/12) - all tests pass including user's voice samples
+- **Performance:** 0.58x realtime average (42% faster than realtime!)
+- **Gold Set:** Validated against user's actual voice recordings
 
-### 📊 Benchmark Results (6 Tests: 3 Short + 3 Medium)
+### 📊 Gold Set Results (User's Actual Voice Samples)
 ```
-Success Rate:    100% (6/6) ✅  [was 69%]
-Avg TTS Time:    5.7s       ⚡  [was 95.9s]
-Speed vs RT:     0.7x       🚀  [was 27x slower]
-Total Runtime:   48s        ✅  [was ~15 min]
-Medium Tests:    0 timeouts ✅  [was 4 timeouts]
+Total Tests:       12 (6 Phase 1 + 6 Gold Set)
+Success Rate:      100% (12/12) ✅
+Avg TTS Time:      4.1s         ⚡
+Speed vs Realtime: 0.58x        🚀 (42% faster!)
+Total Runtime:     51s          ✅
+Languages:         EN, ZH, ES   🌍
+
+Gold Set Details (6 tests from real videos):
+├── English:  2 tests, 9.2s avg audio, 5.3s avg TTS (0.57x RT)
+├── Chinese:  2 tests, 3.5s avg audio, 2.1s avg TTS (0.60x RT)
+└── Spanish:  2 tests, 5.5s avg audio, 3.2s avg TTS (0.59x RT)
 ```
 
-**Full Results:** [BENCHMARK_RESULTS_GPU.md](BENCHMARK_RESULTS_GPU.md)
+**Full Results:** [GOLD_SET_RESULTS.md](GOLD_SET_RESULTS.md) | [BENCHMARK_RESULTS_GPU.md](BENCHMARK_RESULTS_GPU.md)
 
 ### 🏗️ Hybrid Architecture
 ```

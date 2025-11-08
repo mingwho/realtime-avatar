@@ -374,9 +374,9 @@ async def main():
         # language_results = await evaluator.run_language_tests()
         # all_results.extend(language_results)
         
-        # Gold set tests - DISABLED (phrases too long, timeout on CPU)
-        # gold_set_results = await evaluator.run_gold_set_tests()
-        # all_results.extend(gold_set_results)
+        # Gold set tests - now enabled with GPU acceleration
+        gold_set_results = await evaluator.run_gold_set_tests()
+        all_results.extend(gold_set_results)
         
         # Generate summary report
         summary = evaluator.generate_summary_report(all_results)
