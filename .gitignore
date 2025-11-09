@@ -49,6 +49,9 @@ evaluator/outputs/**/*.mp4
 /originals/*.mp4
 /assets/videos/*.mp4
 
+# Local downloads from GCP instances (for spot checking)
+downloads/
+
 # Environment
 .env
 .env.local
