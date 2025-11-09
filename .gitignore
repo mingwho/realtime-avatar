@@ -12,10 +12,17 @@ ENV/
 
 # Runtime GPU service files
 /runtime/SadTalker/  # Cloned SadTalker repository
+runtime/assets/  # Duplicate assets (use root-level assets/)
+runtime/venv_gpu/  # GPU virtual environment directory
 /runtime/models/sadtalker_model.py  # GPU-specific model wrapper
 /runtime/models/avatar_client.py  # GPU service client
 /runtime/patch_sadtalker.py  # Patching script
 /runtime/start_gpu_simple.sh  # GPU startup script
+
+# Original source files (large binaries, converted versions in assets/)
+originals/*.heic
+originals/*.png
+originals/*.jpg
 
 # PyTorch / Model caches
 .cache/
