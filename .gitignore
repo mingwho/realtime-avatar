@@ -24,10 +24,13 @@ ENV/
 *.safetensors
 
 # Output files
-/evaluator/outputs/*.mp4  # Exclude generated videos
 /runtime/outputs/
 *.wav
 *.mp3
+
+# Evaluator outputs - ignore videos but keep JSON test results
+evaluator/outputs/*.mp4
+evaluator/outputs/**/*.mp4
 
 # GPU service output directory
 /tmp/gpu-service-output/
@@ -74,8 +77,3 @@ dist/
 build/
 .npm
 .eslintcache
-
-# Keep certain directories but ignore contents
-/evaluator/outputs/*.mp4  # Exclude video files
-/evaluator/outputs/**/*.mp4  # Exclude video files in subdirectories
-!/evaluator/outputs/*.json  # Include JSON test results
