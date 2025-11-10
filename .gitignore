@@ -74,6 +74,11 @@ Thumbs.db
 *.log
 logs/
 
+# GCP remote outputs (for spot-checking) - but keep README
+outputs/gcp_*/*.wav
+outputs/gcp_*/*.mp4
+outputs/gcp_*/*.json
+
 # Terraform
 infrastructure/.terraform/
 infrastructure/*.tfstate

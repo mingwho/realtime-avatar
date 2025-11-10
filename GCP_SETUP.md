@@ -16,26 +16,45 @@
 
 **Current Phase:** Discovery (SSH-based testing)
 
-## Current Status
+## Current Status (Updated Nov 9, 2025)
 
 ✅ GCP project created: `realtime-avatar-bg`  
 ✅ Billing enabled  
 ✅ APIs enabled: Compute Engine, Storage, Artifact Registry  
-✅ CUDA Docker image built  
-✅ Firewall rule created (port 8000)
-🔄 Instance provisioning in progress
+✅ CUDA Docker image built (PyTorch 2.1.2, 11.2GB)  
+✅ Firewall rule created (port 8000)  
+✅ L4 GPU instance deployed: `realtime-avatar-test` (us-east1-c)  
+✅ NVIDIA drivers installed (550.54.15, CUDA 12.4)  
+✅ Docker + NVIDIA Container Toolkit configured  
+✅ TTS tested on L4 GPU: **1.33x realtime performance** 🎯
+
+### Architecture Discovery
+**Finding:** System uses microservices architecture requiring:
+- TTS GPU Service (port 8001)
+- Avatar GPU Service (port 8001)  
+- Runtime Orchestrator (port 8000)
+
+**Blocker:** Full pipeline testing requires all services deployed and networked.
 
 ## Discovery Phase: Things to Learn
 
 During SSH testing, document:
-- [ ] Which GPU type gives best price/performance (T4, V100, L4, A100)
-- [ ] Optimal instance size (n1-standard-4 vs 8 vs 16)
-- [ ] GFPGAN performance on CUDA vs M3
-- [ ] Model loading time (affects cold start)
-- [ ] Actual costs per video generation
+- [x] Which GPU type gives best price/performance → **L4 GPU selected** ($0.60/hr, 23GB VRAM)
+- [ ] ~~Optimal instance size~~ → g2-standard-4 with L4 (after T4 exhaustion in multiple zones)
+- [x] TTS performance on CUDA → **1.33x realtime** (12.38s for 16.46s audio) ✅
+- [ ] Full pipeline performance (blocked by microservices architecture)
+- [ ] GFPGAN performance on CUDA vs M3 (requires avatar service)
+- [ ] Model loading time → **40s** (one-time XTTS download)
+- [ ] Actual costs per video generation (TTS only: ~$0.002/generation at current rate)
 - [ ] Memory requirements (peak GPU VRAM usage)
 - [ ] Autoscaling trigger metrics (CPU? GPU? Queue depth?)
 - [ ] Network egress costs (video downloads)
+
+### Key Findings
+- **Zone Availability:** T4 exhausted in us-central1-a/b/c, us-west1-b → L4 available in us-east1-c
+- **GPU Quota:** Required increase from 0 to 4 GPUs for L4
+- **PyTorch Version:** TTS 0.22.0 requires PyTorch 2.1.2+ (not 2.0.1)
+- **Architecture:** Distributed microservices, not monolithic container
 
 ## Next Steps
 

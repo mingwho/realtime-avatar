@@ -34,8 +34,8 @@ RUN python -m pip install --no-cache-dir --upgrade pip wheel setuptools
 # Copy requirements
 COPY requirements.txt .
 
-# Install PyTorch with CUDA 11.8 support (use available versions)
-RUN pip install --no-cache-dir torch==2.0.1 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu118
+# Install PyTorch with CUDA 11.8 support - using 2.1.2 to match requirements.txt
+RUN pip install --no-cache-dir torch==2.1.2 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cu118
 
 # Core web framework
 RUN pip install --no-cache-dir fastapi==0.109.0 uvicorn[standard]==0.27.0 pydantic==2.5.3 pydantic-settings==2.1.0
