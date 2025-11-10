@@ -1,0 +1,127 @@
+# GPU Service Dockerfile
+# Unified service for TTS (XTTS) + Avatar (SadTalker) generation
+# Supports both CUDA (GCP) and MPS (M3 Mac)
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    libsndfile1 \
+    libsndfile1-dev \
+    libavformat-dev \
+    libavcodec-dev \
+    libavdevice-dev \
+    libavutil-dev \
+    libavfilter-dev \
+    libswscale-dev \
+    libswresample-dev \
+    pkg-config \
+    git \
+    build-essential \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip
+RUN pip install --no-cache-dir --upgrade pip wheel setuptools
+
+# Install PyTorch (CPU version for base, CUDA will be added if needed)
+# For CUDA support, build with: --build-arg CUDA=true
+ARG CUDA=false
+RUN if [ "$CUDA" = "true" ] ; then \
+        pip install --no-cache-dir torch==2.1.2 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cu118 ; \
+    else \
+        pip install --no-cache-dir torch==2.1.2 torchaudio==2.1.2 ; \
+    fi
+
+# Install core dependencies
+RUN pip install --no-cache-dir \
+    fastapi==0.109.0 \
+    uvicorn[standard]==0.27.0 \
+    pydantic==2.5.3 \
+    pydantic-settings==2.1.0 \
+    httpx==0.26.0 \
+    python-multipart==0.0.6 \
+    aiofiles==23.2.1 \
+    'numpy<2.0.0'
+
+# Install TTS (without problematic dependencies)
+RUN pip install --no-cache-dir --no-deps TTS==0.22.0 && \
+    pip install --no-cache-dir \
+    'cython>=0.29.30' \
+    'scipy>=1.11.4' \
+    'scikit-learn>=1.3.0' \
+    'numba>=0.57.0' \
+    'inflect>=5.6.0' \
+    'tqdm>=4.64.1' \
+    'anyascii>=0.3.0' \
+    'pyyaml>=6.0' \
+    'fsspec>=2023.6.0' \
+    'aiohttp>=3.8.1' \
+    'packaging>=23.1' \
+    'pysbd>=0.3.4' \
+    'pandas<2.0,>=1.4' \
+    'transformers>=4.33.0'
+
+# Install audio processing
+RUN pip install --no-cache-dir \
+    soundfile==0.12.1 \
+    librosa==0.10.1 \
+    audioread==3.0.1
+
+# Install SadTalker dependencies
+RUN pip install --no-cache-dir \
+    opencv-python==4.8.1.78 \
+    pillow==10.1.0 \
+    scikit-image==0.22.0 \
+    yacs==0.1.8 \
+    face-alignment==1.4.1 \
+    imageio==2.33.0 \
+    imageio-ffmpeg==0.4.9
+
+# Install GFPGAN for face enhancement
+RUN pip install --no-cache-dir \
+    basicsr==1.4.2 \
+    facexlib==0.3.0 \
+    realesrgan==0.3.0 \
+    gfpgan==1.3.8
+
+# Clone LivePortrait (for CUDA deployments)
+WORKDIR /app
+RUN git clone https://github.com/KwaiVGI/LivePortrait.git && \
+    cd LivePortrait && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+WORKDIR /app
+COPY gpu_service.py .
+COPY config.py .
+COPY models/ ./models/
+COPY utils/ ./utils/
+COPY SadTalker/ ./SadTalker/
+COPY gfpgan/ ./gfpgan/
+COPY patch_sadtalker.py .
+
+# Apply SadTalker patches for PyTorch 2.x compatibility
+RUN python patch_sadtalker.py
+
+# Download LivePortrait model weights
+RUN cd LivePortrait && \
+    python scripts/download_models.py || echo "LivePortrait models will download at runtime"
+
+# Create output directory
+RUN mkdir -p /tmp/gpu-service-output
+
+# Expose service port
+EXPOSE 8001
+
+# Set environment variables
+ENV PORT=8001
+ENV HOST=0.0.0.0
+ENV PYTORCH_ENABLE_MPS_FALLBACK=1
+ENV AVATAR_BACKEND=auto
+
+# Run the GPU service
+CMD ["python", "gpu_service.py"]

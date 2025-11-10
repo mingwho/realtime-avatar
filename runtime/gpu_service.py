@@ -33,9 +33,13 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from models.tts import XTTSModel
 from models.sadtalker_model import SadTalkerModel
+from models.liveportrait_model import LivePortraitModel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Avatar backend configuration
+AVATAR_BACKEND = os.getenv("AVATAR_BACKEND", "auto")  # auto, sadtalker, liveportrait
 
 app = FastAPI(
     title="GPU Acceleration Service",
@@ -45,7 +49,8 @@ app = FastAPI(
 
 # Global models
 tts_model = None
-avatar_model = None  # SadTalker for video generation
+avatar_model = None  # SadTalker or LivePortrait
+avatar_backend_name = None  # Track which backend is loaded
 # lipsync_model = None  # Future
 
 
@@ -77,20 +82,41 @@ class TTSResponse(BaseModel):
 class VideoRequest(BaseModel):
     audio_path: str
     reference_image: str
-    mode: Literal["sadtalker"] = "sadtalker"
+    mode: Literal["sadtalker", "liveportrait", "auto"] = "auto"
     enhancer: Optional[str] = None  # 'gfpgan' or None
 
 
 class VideoResponse(BaseModel):
     success: bool
     video_path: Optional[str] = None
+    backend: Optional[str] = None  # Which backend was used
     error: Optional[str] = None
+
+
+def select_avatar_backend(device: str, preference: str = "auto") -> str:
+    """
+    Select optimal avatar backend based on device and preference
+    
+    Strategy:
+    - CUDA: Prefer LivePortrait (faster, better quality)
+    - MPS: Use SadTalker (more compatible)
+    - CPU: Use SadTalker (fallback)
+    """
+    if preference != "auto":
+        return preference
+    
+    if device == "cuda":
+        logger.info("CUDA detected: selecting LivePortrait for optimal performance")
+        return "liveportrait"
+    else:
+        logger.info(f"Device {device}: selecting SadTalker for compatibility")
+        return "sadtalker"
 
 
 @app.on_event("startup")
 async def startup():
     """Initialize models with GPU acceleration"""
-    global tts_model, avatar_model
+    global tts_model, avatar_model, avatar_backend_name
     
     device = detect_device()
     logger.info(f"🚀 GPU Service starting on device: {device}")
@@ -109,12 +135,29 @@ async def startup():
     tts_model.initialize()
     logger.info("✅ TTS model ready")
     
-    # Initialize SadTalker model
-    logger.info("Loading SadTalker model...")
-    avatar_model = SadTalkerModel()
-    avatar_model.device = device
-    avatar_model.initialize()
-    logger.info("✅ Avatar model ready")
+    # Select and initialize avatar backend
+    avatar_backend_name = select_avatar_backend(device, AVATAR_BACKEND)
+    logger.info(f"Loading avatar backend: {avatar_backend_name}")
+    
+    if avatar_backend_name == "liveportrait":
+        try:
+            avatar_model = LivePortraitModel()
+            avatar_model.device = device
+            avatar_model.initialize()
+            logger.info("✅ LivePortrait model ready")
+        except Exception as e:
+            logger.error(f"Failed to load LivePortrait: {e}")
+            logger.info("Falling back to SadTalker...")
+            avatar_backend_name = "sadtalker"
+            avatar_model = SadTalkerModel()
+            avatar_model.device = device
+            avatar_model.initialize()
+            logger.info("✅ SadTalker model ready (fallback)")
+    else:
+        avatar_model = SadTalkerModel()
+        avatar_model.device = device
+        avatar_model.initialize()
+        logger.info("✅ SadTalker model ready")
 
 
 @app.get("/health")
@@ -124,6 +167,7 @@ async def health():
     return {
         "status": "healthy" if tts_model and tts_model.is_ready() and avatar_model and avatar_model.is_ready() else "initializing",
         "device": device,
+        "avatar_backend": avatar_backend_name,
         "capabilities": {
             "mps": torch.backends.mps.is_available(),
             "cuda": torch.cuda.is_available(),
@@ -132,6 +176,7 @@ async def health():
         "models": {
             "tts": tts_model.is_ready() if tts_model else False,
             "avatar": avatar_model.is_ready() if avatar_model else False,
+            "avatar_backend": avatar_backend_name,
             "lipsync": False
         }
     }
@@ -187,7 +232,7 @@ async def generate_avatar(request: VideoRequest):
         raise HTTPException(status_code=503, detail="Avatar model not ready")
     
     try:
-        logger.info(f"Avatar request: audio={request.audio_path}, image={request.reference_image}")
+        logger.info(f"Avatar request: audio={request.audio_path}, image={request.reference_image}, backend={avatar_backend_name}")
         
         # Generate output path
         output_dir = Path("/tmp/gpu-service-output")
@@ -195,9 +240,9 @@ async def generate_avatar(request: VideoRequest):
         
         import time
         timestamp = int(time.time() * 1000)
-        output_path = output_dir / f"avatar_{timestamp}.mp4"
+        output_path = output_dir / f"avatar_{avatar_backend_name}_{timestamp}.mp4"
         
-        # Generate video using SadTalker (to be implemented)
+        # Generate video using selected backend (SadTalker or LivePortrait)
         video_path, generation_time = avatar_model.generate_video(
             audio_path=request.audio_path,
             reference_image_path=request.reference_image,
@@ -205,11 +250,12 @@ async def generate_avatar(request: VideoRequest):
             enhancer=request.enhancer
         )
         
-        logger.info(f"✅ Avatar video generated in {generation_time:.0f}ms")
+        logger.info(f"✅ Avatar video generated in {generation_time:.0f}ms using {avatar_backend_name}")
         
         return VideoResponse(
             success=True,
-            video_path=video_path
+            video_path=video_path,
+            backend=avatar_backend_name
         )
         
     except Exception as e:
