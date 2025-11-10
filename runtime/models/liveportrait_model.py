@@ -49,16 +49,19 @@ class LivePortraitModel:
             
             # Import LivePortrait modules
             from src.config.inference_config import InferenceConfig
+            from src.config.crop_config import CropConfig
             from src.live_portrait_pipeline import LivePortraitPipeline
             
-            # Initialize config
-            config = InferenceConfig()
-            config.device_id = 0 if self.device == "cuda" else -1
+            # Initialize configs
+            inference_cfg = InferenceConfig()
+            inference_cfg.device_id = 0 if self.device == "cuda" else -1
+            
+            crop_cfg = CropConfig()
             
             # Initialize pipeline
             self.pipeline = LivePortraitPipeline(
-                inference_cfg=config,
-                crop_cfg=None  # Use default crop config
+                inference_cfg=inference_cfg,
+                crop_cfg=crop_cfg
             )
             
             elapsed = time.time() - start_time
