@@ -1,7 +1,12 @@
 # LivePortrait-Only Dockerfile for Cloud Production (CUDA)
 # Optimized for GCP L4 GPU deployment - No SadTalker dependencies
+# Using devel image for full CUDA support (libnvrtc.so needed by some models)
 
-FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+
+# Set CUDA environment
+ENV CUDA_HOME=/usr/local/cuda \
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 
 WORKDIR /app
 
