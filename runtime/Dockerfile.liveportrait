@@ -126,6 +126,7 @@ RUN mkdir -p /tmp/gpu-service-output
 ENV AVATAR_BACKEND=liveportrait
 ENV USE_CUDA=true
 ENV PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+ENV PYTHONPATH=/app/LivePortrait:$PYTHONPATH
 
 # Expose port
 EXPOSE 8001
