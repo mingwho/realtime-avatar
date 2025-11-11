@@ -1,8 +1,9 @@
-# Ditto TalkingHead Production Image
+# Ditto TalkingHead Production Image with Streaming Architecture
 # Audio-driven talking head synthesis built on LivePortrait
-# Optimized for L4 GPU on GCP with CUDA 11.8
+# Includes StyleTTS2 (fast TTS) and Faster-Whisper (fast ASR)
+# Optimized for L4 GPU on GCP with CUDA 12.1
 
-FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04
 
 WORKDIR /app
 
@@ -106,7 +107,9 @@ RUN pip install --no-cache-dir --no-deps TTS==0.22.0 && \
     'spacy>=3'
 
 # Install Ditto-specific dependencies
+# Force numpy<2.0 to avoid TTS conflicts
 RUN pip install --no-cache-dir \
+    'numpy<2.0.0,>=1.22.0' \
     opencv-python-headless==4.9.0.80 \
     pillow==10.2.0 \
     imageio==2.33.1 \
@@ -125,52 +128,31 @@ RUN pip install --no-cache-dir \
     onnxruntime-gpu==1.17.0 \
     langdetect==1.0.9
 
+# Install Phase 2 dependencies (StyleTTS2 + Faster-Whisper)
+RUN pip install --no-cache-dir \
+    faster-whisper==1.0.3 \
+    ctranslate2==4.0.0 \
+    phonemizer==3.2.1 \
+    g2p-en==2.1.0 \
+    'einops>=0.7.0' \
+    'munch==4.0.0'
+
 # Clone Ditto repository
 RUN git clone https://github.com/antgroup/ditto-talkinghead.git /app/ditto-talkinghead
 
-# Download Ditto models with retry logic
-# Config file
+# Download Ditto models - mount these from host or skip for now
+# Models will be mounted from host at runtime via -v flag
+# Placeholder directories
 RUN mkdir -p /app/ditto-talkinghead/checkpoints/ditto_cfg && \
-    cd /app/ditto-talkinghead/checkpoints/ditto_cfg && \
-    curl -L --retry 3 --retry-delay 2 -o v0.4_hubert_cfg_pytorch.pkl \
-    https://huggingface.co/digital-avatar/ditto-talkinghead/resolve/main/v0.4_hubert_cfg_pytorch.pkl
+    mkdir -p /app/ditto-talkinghead/checkpoints/ditto_pytorch/models && \
+    mkdir -p /app/ditto-talkinghead/checkpoints/ditto_pytorch/aux_models && \
+    echo "Models should be mounted at runtime via: -v /path/to/checkpoints:/app/ditto-talkinghead/checkpoints" > /app/ditto-talkinghead/checkpoints/README.txt
 
-# PyTorch models
-RUN mkdir -p /app/ditto-talkinghead/checkpoints/ditto_pytorch/models && \
-    cd /app/ditto-talkinghead/checkpoints/ditto_pytorch/models && \
-    curl -L --retry 3 --retry-delay 2 -o appearance_extractor.pth \
-    https://huggingface.co/digital-avatar/ditto-talkinghead/resolve/main/appearance_extractor.pth && \
-    curl -L --retry 3 --retry-delay 2 -o decoder.pth \
-    https://huggingface.co/digital-avatar/ditto-talkinghead/resolve/main/decoder.pth && \
-    curl -L --retry 3 --retry-delay 2 -o lmdm_v0.4_hubert.pth \
-    https://huggingface.co/digital-avatar/ditto-talkinghead/resolve/main/lmdm_v0.4_hubert.pth && \
-    curl -L --retry 3 --retry-delay 2 -o motion_extractor.pth \
-    https://huggingface.co/digital-avatar/ditto-talkinghead/resolve/main/motion_extractor.pth && \
-    curl -L --retry 3 --retry-delay 2 -o stitch_network.pth \
-    https://huggingface.co/digital-avatar/ditto-talkinghead/resolve/main/stitch_network.pth && \
-    curl -L --retry 3 --retry-delay 2 -o warp_network.pth \
-    https://huggingface.co/digital-avatar/ditto-talkinghead/resolve/main/warp_network.pth
-
-# Auxiliary models
-RUN mkdir -p /app/ditto-talkinghead/checkpoints/ditto_pytorch/aux_models && \
-    cd /app/ditto-talkinghead/checkpoints/ditto_pytorch/aux_models && \
-    curl -L --retry 3 --retry-delay 2 -o 2d106det.onnx \
-    https://huggingface.co/digital-avatar/ditto-talkinghead/resolve/main/2d106det.onnx && \
-    curl -L --retry 3 --retry-delay 2 -o det_10g.onnx \
-    https://huggingface.co/digital-avatar/ditto-talkinghead/resolve/main/det_10g.onnx && \
-    curl -L --retry 3 --retry-delay 2 -o face_landmarker.task \
-    https://huggingface.co/digital-avatar/ditto-talkinghead/resolve/main/face_landmarker.task && \
-    curl -L --retry 3 --retry-delay 2 -o hubert_streaming_fix_kv.onnx \
-    https://huggingface.co/digital-avatar/ditto-talkinghead/resolve/main/hubert_streaming_fix_kv.onnx && \
-    curl -L --retry 3 --retry-delay 2 -o landmark203.onnx \
-    https://huggingface.co/digital-avatar/ditto-talkinghead/resolve/main/landmark203.onnx
-
-# Copy application code
+# Copy application code and utilities
 COPY . /app/runtime
 WORKDIR /app/runtime
 
-# Create optimized Ditto config for faster inference
-RUN python optimize_ditto_config.py || echo "Config optimization skipped (models not downloaded yet)"
+# Note: Ditto config optimization will be done at runtime when models are mounted
 
 # Set Python path to include both runtime and ditto directories
 ENV PYTHONPATH=/app/runtime:/app/ditto-talkinghead:$PYTHONPATH
@@ -183,6 +165,7 @@ ENV TORCH_ALLOW_TF32=1
 # Environment variables
 ENV AVATAR_BACKEND=ditto
 ENV CUDA_VISIBLE_DEVICES=0
+ENV COQUI_TOS_AGREED=1
 
 # Expose port
 EXPOSE 8001
