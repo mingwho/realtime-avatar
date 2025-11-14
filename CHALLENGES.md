@@ -587,3 +587,68 @@ Based on priority and current progress:
 - Docker container: HEALTHY and production-ready
 - Models: Downloaded and validated
 - Cost: ~$0.60/hour when running
+
+---
+
+## 🔬 Ditto Performance Optimization (Nov 13-14, 2025)
+
+**Challenge:**
+Ditto TalkingHead model running at 4.56x RTF (real-time factor) - far from real-time (<1.0x) requirement.
+
+**Attempted Optimizations:**
+
+1. **✅ Image Resolution Reduction** (19% improvement)
+   - Cropped from 512x682px → 384x579px (36% fewer pixels)
+   - Result: 4.56x → 3.71x RTF
+   - Saved: `originals/bruce_haircut_cropped.jpg`
+
+2. **✅ Diffusion Steps Reduction** (17% improvement)
+   - Reduced from 50 → 25 steps (modified pickle config)
+   - Result: 3.71x → 3.07x RTF
+   - Quality acceptable at 25 steps
+
+3. **❌ FP16 Precision** (only 4% improvement)
+   - Added `.half()` conversion to models
+   - Result: 3.07x → 2.94x RTF
+   - Bottleneck is not compute precision
+
+4. **❌ Further Steps Reduction** (only 3% improvement)
+   - Reduced from 25 → 15 steps
+   - Result: 2.94x → 2.86x RTF
+   - Diminishing returns, quality degradation
+
+5. **❌ Micro Resolution** (actually SLOWER)
+   - Reduced to 180x240px (87% fewer pixels)
+   - Result: 3.07x → 3.04x RTF (only 1% better!)
+   - Video encoding overhead dominates at tiny sizes
+
+**Key Finding:**
+Resolution optimization hits a wall around 384x579px. Further reductions provide negligible benefit because the **bottleneck is the diffusion model computation itself**, not image processing.
+
+**Final Optimized Configuration:**
+- Resolution: 384x579px (cropped portrait)
+- Diffusion steps: 25
+- FPS: 25
+- Precision: FP32 (FP16 didn't help)
+- **Best RTF: 3.07x** (1.6x overall speedup from baseline)
+- **Throughput: 145 videos/hour**
+
+**Still 3x Slower Than Real-Time**
+
+**Remaining Options to Reach <1.0x RTF:**
+1. **TensorRT Optimization** - Most promising, 2-3x speedup potential (2-4 days effort)
+2. **Alternative Model** - Wav2Lip achieves ~1.0x RTF but lower quality
+3. **GPU Upgrade + TensorRT** - H100 could get 2x more, but 8x more expensive
+
+**Lessons Learned:**
+- Simple optimizations (crop + steps) gave 33% improvement quickly
+- Advanced optimizations (FP16, micro-resolution) had diminishing returns
+- Diffusion models are inherently slow - fundamental architecture limit
+- Resolution sweet spot exists (~384x579px for this model)
+- Hardware upgrade alone won't solve it - need algorithmic optimization (TensorRT)
+- Concurrent execution on single GPU has variable performance
+
+**Test Files Created:**
+- `originals/bruce_haircut_cropped.jpg` - 384x579px, keeps for production
+- `originals/bruce_haircut_micro.jpg` - 180x240px, delete (not useful)
+
