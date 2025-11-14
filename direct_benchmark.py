@@ -61,10 +61,10 @@ total_duration = 0
 
 # Reference files
 speaker_reference = "/app/bruce_expressive_motion_21s.mp3"
-image_reference = "/app/bruce_haircut.jpg"
+image_reference = "/app/bruce_haircut_small.jpg"  # 512x682px
 
 print(f"🎤 Voice cloning reference: {speaker_reference}")
-print(f"🖼️  Image reference: {image_reference}")
+print(f"🖼️  Image reference: {image_reference} (small: 512x682px)")
 print()
 
 for i, text in enumerate(test_texts, 1):

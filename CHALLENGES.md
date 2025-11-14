@@ -652,3 +652,62 @@ Resolution optimization hits a wall around 384x579px. Further reductions provide
 - `originals/bruce_haircut_cropped.jpg` - 384x579px, keeps for production
 - `originals/bruce_haircut_micro.jpg` - 180x240px, delete (not useful)
 
+
+---
+
+## 🔍 TensorRT Discovery (Nov 14, 2025)
+
+**Discovery:**
+Ditto has **official TensorRT engines** pre-built and ready to use! We don't need to convert anything.
+
+**What We Found:**
+
+1. **Pre-built TensorRT Engines (2GB)**
+   - Path: `checkpoints/ditto_trt_Ampere_Plus/`
+   - Files: 
+     * `decoder_fp16.engine`
+     * `motion_extractor_fp32.engine`
+     * `warp_network_fp16.engine`
+     * `appearance_extractor_fp16.engine`
+     * `stitch_network_fp16.engine`
+     * Plus auxiliary models (hubert, landmark detection, etc.)
+   - Hardware compatibility: Ampere+ (L4, A10, A100, RTX 30/40 series)
+
+2. **TensorRT Config Files**
+   - `v0.4_hubert_cfg_trt.pkl` - Standard inference
+   - `v0.4_hubert_cfg_trt_online.pkl` - Online/streaming mode
+
+3. **Official Support**
+   - README documents TensorRT path explicitly
+   - Tested on A100 + TensorRT 8.6.1
+   - Community reports successful usage on RTX 3090
+
+**Expected Performance:**
+- Current PyTorch: 3.07x RTF (145 videos/hour)
+- TensorRT target: **<1.5x RTF** (>240 videos/hour)
+- Potential for **real-time** (<1.0x RTF)
+
+**Installation Blocker:**
+TensorRT 8.6.1 installation failed in current container:
+- Requires `tensorrt-libs` (825MB package)
+- Complex dependency chain with NVIDIA PyPI index
+- Need proper build environment setup
+
+**Next Steps:**
+1. Create new Docker image with TensorRT 8.6.1 pre-installed
+2. Use NVIDIA's official TensorRT container as base image
+3. Run: `python inference.py --data_root=./checkpoints/ditto_trt_Ampere_Plus --cfg_pkl=./checkpoints/ditto_cfg/v0.4_hubert_cfg_trt.pkl`
+
+**Lessons Learned:**
+- Always check upstream project docs thoroughly
+- Official optimizations often exist before community ports
+- TensorRT installation requires careful environment setup
+- The 2-4 day TensorRT conversion work we estimated is **already done**!
+
+**Files Created:**
+- `download_trt_checkpoints.sh` - Script to download TRT engines from Hugging Face
+- `test_trt.py` - Test script for TensorRT inference (untested due to install issues)
+
+**Impact:**
+This could be the breakthrough to real-time performance. Just need to resolve TensorRT installation to test.
+
