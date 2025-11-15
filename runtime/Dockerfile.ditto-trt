@@ -1,0 +1,99 @@
+# Ditto TalkingHead with TensorRT Support
+# Using NVIDIA TensorRT base image with CUDA 12.0 + TensorRT 8.6.1
+# Includes official Ditto TRT engines for 2-3x speedup
+
+FROM nvcr.io/nvidia/tensorrt:23.08-py3
+
+WORKDIR /app
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+# Install additional system dependencies
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    libsndfile1 \
+    libsndfile1-dev \
+    libavformat-dev \
+    libavcodec-dev \
+    libavdevice-dev \
+    libavutil-dev \
+    libavfilter-dev \
+    libswscale-dev \
+    libswresample-dev \
+    pkg-config \
+    git \
+    wget \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Verify TensorRT is available
+RUN python3 -c "import tensorrt as trt; print(f'TensorRT {trt.__version__} installed successfully')"
+
+# Install PyTorch with CUDA 11.8 support (compatible with CUDA 12 runtime)
+RUN pip install --no-cache-dir \
+    torch==2.1.2 \
+    torchvision==0.16.2 \
+    torchaudio==2.1.2 \
+    --index-url https://download.pytorch.org/whl/cu118
+
+# Install Python dependencies for Ditto
+RUN pip install --no-cache-dir \
+    numpy==2.0.1 \
+    opencv-python-headless \
+    scikit-image \
+    imageio \
+    imageio-ffmpeg \
+    librosa \
+    tqdm \
+    filetype \
+    colored \
+    cython \
+    cuda-python==12.8.0 \
+    polygraphy \
+    huggingface-hub
+
+# Clone Ditto repository
+RUN git clone https://github.com/antgroup/ditto-talkinghead.git /app/ditto-talkinghead
+
+# Set working directory to Ditto
+WORKDIR /app/ditto-talkinghead
+
+# Download TensorRT checkpoints using huggingface-cli
+RUN huggingface-cli download digital-avatar/ditto-talkinghead \
+    --include "ditto_trt_Ampere_Plus/*" \
+    --include "ditto_cfg/v0.4_hubert_cfg_trt*.pkl" \
+    --local-dir ./checkpoints \
+    --local-dir-use-symlinks False
+
+# Also download PyTorch checkpoints for fallback
+RUN huggingface-cli download digital-avatar/ditto-talkinghead \
+    --include "ditto_pytorch/*" \
+    --include "ditto_cfg/v0.4_hubert_cfg_pytorch.pkl" \
+    --local-dir ./checkpoints \
+    --local-dir-use-symlinks False
+
+# Set up runtime directory structure
+WORKDIR /app/runtime
+RUN mkdir -p /app/runtime/checkpoints
+
+# Create symlinks to Ditto checkpoints
+RUN ln -sf /app/ditto-talkinghead/checkpoints/ditto_cfg ./checkpoints/ditto_cfg && \
+    ln -sf /app/ditto-talkinghead/checkpoints/ditto_pytorch ./checkpoints/ditto_pytorch && \
+    ln -sf /app/ditto-talkinghead/checkpoints/ditto_trt_Ampere_Plus ./checkpoints/ditto_trt_Ampere_Plus
+
+# Copy runtime files (will be mounted in production)
+# COPY ./models /app/runtime/models
+# COPY ./pipelines /app/runtime/pipelines
+# COPY ./app.py /app/runtime/
+# COPY ./config.py /app/runtime/
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import tensorrt; import torch; print('OK')" || exit 1
+
+# Expose port for API
+EXPOSE 8001
+
+# Default command
+CMD ["bash"]
