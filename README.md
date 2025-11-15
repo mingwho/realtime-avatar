@@ -1,18 +1,32 @@
 # Realtime Avatar: Multilingual Conversational Avatar System
 
-A low-latency, multilingual conversational avatar system with GPU acceleration that generates realistic talking-head videos using voice cloning and AI animation.
+A low-latency, multilingual conversational avatar system with TensorRT acceleration that generates realistic talking-head videos using voice cloning and AI animation.
 
 ## 🎯 Project Overview
 
-**Current Phase**: Phase 1 (Script → Video MVP) ✅ **+ Ditto Audio-Driven Avatar**  
-**Performance**: Sub-10-second video generation on CUDA GPUs (estimated)
+**Current Phase**: Phase 3 (TensorRT Optimization) ✅ **COMPLETE**  
+**Performance**: **Near real-time** video generation with TensorRT on L4 GPU
 
 This system creates a digital avatar that:
-- 🗣️ Speaks in Bruce's cloned voice (multilingual: EN/ZH/ES)
-- 🎭 Animates from reference images using **Ditto** (audio-driven LivePortrait)
-- ⚡ **Real-time capable** generation with GPU acceleration
+- 🗣️ Speaks in cloned voice (multilingual: EN/ZH/ES) with XTTS-v2
+- 🎭 Animates from reference images using **Ditto + TensorRT**
+- ⚡ **Near real-time** generation: **1.23x RTF** (2.5x faster than PyTorch!)
 - 💰 Scales to zero cost when idle (Cloud Run GPU)
-- 🔧 Supports local development (M3 MPS) and cloud production (GCP CUDA)
+- 🔧 Supports local development and cloud production (GCP L4 GPU)
+
+## 🚀 Latest: TensorRT Integration (Nov 15, 2025)
+
+**Major Performance Breakthrough:**
+- **PyTorch Baseline:** 3.07x RTF
+- **TensorRT Optimized:** **1.23x RTF** (20.3 FPS) ⚡⚡
+- **Speedup:** **2.5x faster!**
+
+**Complete Voice Cloning Pipeline:**
+- Text → XTTS-v2 synthesis: **0.70x RTF** (faster than real-time)
+- Audio → Ditto TensorRT lip sync: **1.25x RTF** (near real-time)
+- End-to-end: **1.95x RTF** (excluding model loading)
+
+See [TensorRT Setup Guide](docs/TENSORRT_SETUP.md) for installation instructions.
 
 ## 🎬 Avatar Technology: Ditto
 
@@ -20,33 +34,43 @@ This system creates a digital avatar that:
 - Built on LivePortrait components (appearance extraction, motion, warping)
 - HuBERT audio encoder for speech analysis
 - LMDM diffusion model for motion generation
-- Real-time capable on modern GPUs (L4, A100, etc.)
-- High-quality 1432x1432 output resolution
+- **TensorRT optimized** for near real-time performance
+- High-quality output at 512x682 resolution (3:4 portrait)
 
 ## 📊 Performance
 
-| Metric | CPU Only | M3 MPS | L4 GPU (Est.) | Improvement |
-|--------|----------|---------|---------------|-------------|
-| TTS Generation | ~126s | ~2.4s | ~12s | **10x faster** |
-| Avatar Generation | N/A | N/A | **<10s** (Ditto) | **Real-time capable** |
-| Speed vs Realtime | 27x slower | 0.54x (faster!) | 0.6x (faster!) | **45x improvement** |
+### TensorRT Optimized (L4 GPU)
+| Component | RTF | Speed | Status |
+|-----------|-----|-------|--------|
+| XTTS-v2 TTS | **0.70x** | Faster than realtime | ⚡ |
+| Ditto TensorRT | **1.23x** | Near realtime (20.3 FPS) | ⚡⚡ |
+| Combined Pipeline | **1.95x** | Excluding model loading | 🚀 |
 
-**Note:** Ditto performance estimates based on L4 GPU. CPU-only tests: ~2 minutes per 16-second video.
+**Speedup:** 2.5x faster than PyTorch baseline (3.07x → 1.23x RTF)
 
-## �📋 Development Phases
+### Historical Performance
+| Metric | CPU Only | M3 MPS | L4 PyTorch | L4 TensorRT |
+|--------|----------|---------|------------|-------------|
+| TTS (XTTS-v2) | ~126s | ~2.4s | **0.72x** | **0.70x** |
+| Avatar (Ditto) | N/A | N/A | 3.07x | **1.23x** ⚡⚡ |
+| Total RTF | 27x | N/A | 3.79x | **1.95x** |
+
+## 📋 Development Phases
 
 - **Phase 1** ✅ **COMPLETE**: Script → Pre-rendered video (GPU accelerated)
-- **Phase 2** 🚧 (Next): Semi-interactive chat with response clips
-- **Phase 3** 📅 (Future): Real-time WebRTC streaming conversation
+- **Phase 2** ✅ **COMPLETE**: Voice cloning + optimization
+- **Phase 3** ✅ **COMPLETE**: TensorRT integration (2.5x speedup!)
+- **Phase 4** � (Next): Semi-interactive chat with response clips
+- **Phase 5** 📅 (Future): Real-time WebRTC streaming conversation
 
 ## 🏗️ Architecture
 
 ```
 ┌──────────────────────────────────────┐
-│  GPU Service (Native, Port 8001)     │
-│  - TTS with MPS/CUDA acceleration   │
-│  - Ditto Avatar Generation (CUDA)   │
-│  - Lip Sync (future)                 │
+│  GPU Service (CUDA, Port 8001)       │
+│  - XTTS-v2 TTS with voice cloning   │
+│  - Ditto Avatar + TensorRT          │
+│  - Faster-Whisper ASR               │
 └──────────────┬───────────────────────┘
                │ HTTP API
 ┌──────────────▼───────────────────────┐
@@ -64,25 +88,50 @@ This system creates a digital avatar that:
 ```
 
 ### Avatar Backends
-- **Ditto** (default): Audio-driven, real-time capable, CUDA optimized
-- **SadTalker**: Fallback option, MPS compatible
-- **LivePortrait**: Video-driven (deprecated - not audio-driven)
+- **Ditto + TensorRT** (default): Audio-driven, near real-time, 2.5x faster
+- **Ditto PyTorch**: Fallback option, good quality but slower
+- **SadTalker**: Alternative backend, MPS compatible
 
 ### Deployment Modes
-- **Local Dev**: Docker runtime + native GPU service (M3 MPS + SadTalker)
-- **Production**: Cloud Run + GCP GPU instance (L4 CUDA + Ditto)
+- **Local Dev**: Docker runtime + native GPU service
+- **Production**: GCP L4 GPU instance with TensorRT optimization
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Docker & Docker Compose
-- Python 3.9+ (for GPU service)
+- Python 3.10+
 - ffmpeg
-- macOS M1/M2/M3 (for local GPU) or Linux
+- NVIDIA GPU with CUDA 12.1+ (for TensorRT) or macOS M1/M2/M3 (for MPS)
 
-### Setup
+### Complete Voice Cloning Pipeline (TensorRT)
 
-1. **Extract voice samples from videos**:
+Generate a video with your cloned voice in near real-time:
+
+```bash
+# 1. Upload your voice sample (30+ seconds recommended)
+gcloud compute scp your_voice.m4a instance:~/
+docker cp instance:~/your_voice.m4a container:/root/
+
+# 2. Convert to WAV format
+docker exec container ffmpeg -i /root/your_voice.m4a \
+  -ar 22050 -ac 1 /root/voice_sample.wav
+
+# 3. Run complete pipeline
+docker exec container python3 /root/complete_pipeline.py \
+  --text "Your text to speak here" \
+  --speaker /root/voice_sample.wav \
+  --image /path/to/portrait.jpg \
+  --output /root/output.mp4 \
+  --language en
+
+# 4. Download result
+gcloud compute scp instance:~/output.mp4 ~/Downloads/
+```
+
+**Performance:** ~1.95x RTF for complete text → cloned speech → lip-synced video!
+
+See [TensorRT Setup Guide](docs/TENSORRT_SETUP.md) for detailed installation instructions.
 ### Local Development (with GPU Acceleration)
 
 1. **Setup GPU service** (for M3 Macs):
