@@ -1,20 +1,22 @@
 """
 Runtime service - Main FastAPI application
 Handles Phase 1: Script → Video generation
+Handles Phase 4: Interactive conversation with voice input
 """
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Dict
 import logging
 import os
 import uuid
 from datetime import datetime
+import shutil
 
 from config import settings, get_settings
 from pipelines.phase1_script import Phase1Pipeline
-
-# Configure logging
+from pipelines.conversation_pipeline import ConversationPipeline# Configure logging
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper()),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -24,23 +26,35 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI app
 app = FastAPI(
     title="Realtime Avatar Runtime Service",
-    description="Real-time avatar generation API",
-    version="0.1.0"
+    description="Real-time avatar generation API with conversation support",
+    version="0.2.0"
 )
 
-# Initialize pipeline (will lazy-load models)
+# Add CORS middleware for web UI
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure appropriately for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Initialize pipelines (will lazy-load models)
 phase1_pipeline: Optional[Phase1Pipeline] = None
+conversation_pipeline: Optional[ConversationPipeline] = None
 
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize models on startup"""
-    global phase1_pipeline
+    global phase1_pipeline, conversation_pipeline
     logger.info(f"Starting Realtime Avatar Runtime in {settings.mode} mode on {settings.device}")
     logger.info(f"Video resolution: {settings.video_resolution}, FPS: {settings.video_fps}")
     
-    # Create output directory
+    # Create output directories
     os.makedirs(settings.output_dir, exist_ok=True)
+    os.makedirs("outputs/conversations", exist_ok=True)
+    os.makedirs("/tmp/audio_uploads", exist_ok=True)
     
     # Initialize Phase 1 pipeline
     try:
@@ -48,8 +62,23 @@ async def startup_event():
         phase1_pipeline.initialize()  # Actually load the models!
         logger.info("Phase 1 pipeline initialized successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize pipeline: {e}")
+        logger.error(f"Failed to initialize Phase 1 pipeline: {e}")
         raise
+    
+    # Initialize Phase 4 conversation pipeline
+    try:
+        conversation_pipeline = ConversationPipeline(
+            reference_image="assets/images/bruce_haircut_cropped.jpg",
+            reference_audio="assets/voice/reference_samples/bruce_en_sample.wav",
+            output_dir="outputs/conversations",
+            device=settings.device,
+            use_tensorrt=True,
+        )
+        conversation_pipeline.initialize()
+        logger.info("Phase 4 conversation pipeline initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize conversation pipeline: {e}")
+        logger.warning("Conversation features will be unavailable")
 
 
 @app.on_event("shutdown")
@@ -93,6 +122,38 @@ class HealthResponse(BaseModel):
     mode: str
     device: str
     models_loaded: bool
+
+
+# Phase 4: Conversation models
+class TranscribeResponse(BaseModel):
+    """Response model for audio transcription"""
+    text: str
+    language: str
+    duration: float
+    transcribe_time: float
+
+
+class ChatRequest(BaseModel):
+    """Request model for LLM chat"""
+    message: str
+    conversation_history: Optional[List[Dict[str, str]]] = None
+    max_tokens: int = 150
+
+
+class ChatResponse(BaseModel):
+    """Response model for LLM chat"""
+    response: str
+    llm_time: float
+
+
+class ConversationResponse(BaseModel):
+    """Response model for full conversation pipeline"""
+    job_id: str
+    user_text: str
+    response_text: str
+    video_url: str
+    total_time: float
+    metadata: dict
 
 
 # API endpoints
@@ -224,6 +285,132 @@ async def list_voice_samples():
         return {"samples": samples}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Phase 4: Conversation endpoints
+@app.post("/api/v1/transcribe", response_model=TranscribeResponse)
+async def transcribe_audio(audio: UploadFile = File(...), language: str = "en"):
+    """
+    Transcribe audio to text using ASR (Faster-Whisper).
+    Phase 4: Voice input support
+    """
+    if not conversation_pipeline:
+        raise HTTPException(status_code=503, detail="Conversation pipeline not initialized")
+    
+    # Save uploaded audio to temp file
+    temp_path = f"/tmp/audio_uploads/{uuid.uuid4().hex}.wav"
+    try:
+        with open(temp_path, "wb") as f:
+            shutil.copyfileobj(audio.file, f)
+        
+        # Transcribe
+        result = conversation_pipeline.transcribe(temp_path, language=language)
+        
+        return TranscribeResponse(
+            text=result["text"],
+            language=result["language"],
+            duration=result["duration"],
+            transcribe_time=result["transcribe_time"],
+        )
+        
+    except Exception as e:
+        logger.error(f"Transcription failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
+    finally:
+        # Clean up temp file
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+
+@app.post("/api/v1/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    """
+    Generate conversational response using LLM (Qwen-2.5).
+    Phase 4: Text chat without avatar generation
+    """
+    if not conversation_pipeline:
+        raise HTTPException(status_code=503, detail="Conversation pipeline not initialized")
+    
+    try:
+        result = conversation_pipeline.generate_response(
+            user_message=request.message,
+            conversation_history=request.conversation_history,
+            max_tokens=request.max_tokens,
+        )
+        
+        return ChatResponse(
+            response=result["response"],
+            llm_time=result["llm_time"],
+        )
+        
+    except Exception as e:
+        logger.error(f"Chat failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
+
+
+@app.post("/api/v1/conversation", response_model=ConversationResponse)
+async def process_conversation(
+    audio: UploadFile = File(...),
+    language: str = "en",
+    conversation_history: Optional[str] = None,  # JSON string of history
+):
+    """
+    Full conversation pipeline: Audio → ASR → LLM → TTS → Video.
+    Phase 4: Interactive voice conversation with avatar response
+    """
+    if not conversation_pipeline:
+        raise HTTPException(status_code=503, detail="Conversation pipeline not initialized")
+    
+    # Save uploaded audio
+    job_id = f"conversation_{uuid.uuid4().hex[:8]}"
+    temp_path = f"/tmp/audio_uploads/{job_id}.wav"
+    
+    try:
+        with open(temp_path, "wb") as f:
+            shutil.copyfileobj(audio.file, f)
+        
+        # Parse conversation history if provided
+        history = None
+        if conversation_history:
+            import json
+            try:
+                history = json.loads(conversation_history)
+            except json.JSONDecodeError:
+                logger.warning("Invalid conversation history JSON, ignoring")
+        
+        # Process full conversation
+        result = conversation_pipeline.process_conversation(
+            audio_path=temp_path,
+            conversation_history=history,
+            output_name=job_id,
+            language=language,
+        )
+        
+        # Get video URL
+        video_filename = os.path.basename(result["avatar_video"]["video_path"])
+        video_url = f"/api/v1/videos/{video_filename}"
+        
+        return ConversationResponse(
+            job_id=job_id,
+            user_text=result["user_text"],
+            response_text=result["response_text"],
+            video_url=video_url,
+            total_time=result["total_time"],
+            metadata={
+                "transcribe_time": result["transcription"]["transcribe_time"],
+                "llm_time": result["llm_response"]["llm_time"],
+                "generation_time": result["avatar_video"]["total_generation_time"],
+                "language": language,
+            },
+        )
+        
+    except Exception as e:
+        logger.error(f"[{job_id}] Conversation processing failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Conversation failed: {str(e)}")
+    finally:
+        # Clean up temp file
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  # Web UI - Runs locally, connects to remote GCP backend
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: realtime-avatar-web
+    ports:
+      - "8080:80"
+    environment:
+      - NGINX_HOST=localhost
+      - NGINX_PORT=80
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+networks:
+  default:
+    name: realtime-avatar-local

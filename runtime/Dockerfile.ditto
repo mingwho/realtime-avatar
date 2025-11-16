@@ -107,9 +107,9 @@ RUN pip install --no-cache-dir --no-deps TTS==0.22.0 && \
     'spacy>=3'
 
 # Install Ditto-specific dependencies
-# Force numpy<2.0 to avoid TTS conflicts
+# Force numpy==1.26.4 to avoid TTS conflicts (1.22.0 too old for scipy)
 RUN pip install --no-cache-dir \
-    'numpy<2.0.0,>=1.22.0' \
+    numpy==1.26.4 \
     opencv-python-headless==4.9.0.80 \
     pillow==10.2.0 \
     imageio==2.33.1 \
