@@ -8,9 +8,9 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 import time
 
-from runtime.models.asr import ASRModel
-from runtime.models.llm import LLMModel
-from runtime.pipelines.phase1_script import run_pipeline
+from models.asr import ASRModel
+from models.llm import LLMModel
+from pipelines.phase1_script import Phase1Pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +52,7 @@ class ConversationPipeline:
         # Models (lazy loaded)
         self.asr_model: Optional[ASRModel] = None
         self.llm_model: Optional[LLMModel] = None
+        self.phase1_pipeline: Optional[Phase1Pipeline] = None  # For TTS + Video
 
         # System prompt for conversational LLM
         self.system_prompt = """You are Bruce, a helpful and friendly AI assistant. 
@@ -169,16 +170,20 @@ Be natural, warm, and engaging in your communication style."""
         start_time = time.time()
         logger.info(f"Generating avatar video for: '{text[:100]}...'")
 
-        # Use existing phase1_script pipeline (TTS + Video)
+        # Initialize Phase1Pipeline if needed
+        if self.phase1_pipeline is None:
+            self.phase1_pipeline = Phase1Pipeline(device=self.device)
+            self.phase1_pipeline.initialize()
+
+        # Use phase1_script pipeline (TTS + Video)
         output_dir = str(self.output_dir / output_name)
         
-        result = run_pipeline(
+        result = self.phase1_pipeline.run(
             text=text,
             reference_image=self.reference_image,
             reference_audio=self.reference_audio,
             output_dir=output_dir,
             language=language,
-            device=self.device,
             use_tensorrt=self.use_tensorrt,
         )
 

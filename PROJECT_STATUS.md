@@ -1,27 +1,50 @@
 # Realtime Avatar - Project Status
 
-**Last Updated:** November 16, 2025  
-**Current Phase:** Phase 4 Complete ✅ (Deployment Ready)  
-**Performance:** ~35-40s per conversation turn
+**Last Updated:** November 17, 2025  
+**Current Phase:** Phase 4 Deployed ✅ (TTS Operational on GCP L4)  
+**Performance:** TTS 0.92x RTF on L4 GPU (video pending Ditto checkpoints)
 
-## 🎉 Latest Achievement: Phase 4 Complete & Documentation Consolidated!
+## 🎉 Latest Achievement: Backend Deployed to GCP with TTS Working!
 
-**Date:** November 16, 2025
+**Date:** November 17, 2025
 
-### Phase 4 Complete ✅
+### Deployment Complete ✅
 
-Successfully implemented and documented end-to-end conversational avatar system:
+Successfully deployed Phase 4 backend to GCP L4 GPU instance:
 
-**Components Delivered:**
-- ✅ Conversation pipeline (ASR → LLM → TTS → Video)
-- ✅ FastAPI endpoints (/transcribe, /chat, /conversation)
-- ✅ Web UI with push-to-talk voice recording
-- ✅ Hybrid deployment architecture (local web + remote GPU)
-- ✅ Docker containerization for all services
-- ✅ Deployment automation scripts
-- ✅ **NEW:** Consolidated DEPLOYMENT.md guide
-- ✅ **NEW:** Fresh GCP instance with 100GB disk
-- ✅ **NEW:** Updated README with Phase 4 info
+**Infrastructure:**
+- ✅ GCP g2-standard-4 instance (L4 GPU, 100GB disk)
+- ✅ NVIDIA drivers 580.95.05 + CUDA 13.0
+- ✅ Docker containers built and running
+- ✅ GPU service healthy with TTS model loaded
+- ✅ Runtime service operational
+
+**Testing Results:**
+- ✅ TTS voice cloning working (XTTS-v2)
+- ✅ Performance: 0.92x RTF (7.7s audio in 8.4s)
+- ⏳ Video generation pending Ditto checkpoint download (~3GB)
+
+### Deployment Status (Nov 17, 2025)
+
+**Infrastructure:**
+- Instance: realtime-avatar-test (g2-standard-4, L4 GPU, 100GB disk)
+- Zone: us-east1-c
+- IP: 35.227.50.79
+- Status: Deployed and tested ✅ (currently stopped)
+
+**Services:**
+- GPU Service (8001): TTS operational, video pending checkpoints
+- Runtime Service (8000): Healthy and ready
+- Assets: Voice samples mounted correctly
+
+**Next Session:**
+1. Download Ditto model checkpoints
+2. Test full video pipeline
+3. Measure end-to-end performance
+
+---
+
+## Previous Achievement: Phase 4 Complete (Nov 16, 2025)
 
 **Pipeline Flow:**
 ```

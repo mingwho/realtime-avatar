@@ -56,13 +56,13 @@ async def startup_event():
     os.makedirs("outputs/conversations", exist_ok=True)
     os.makedirs("/tmp/audio_uploads", exist_ok=True)
     
-    # Initialize Phase 1 pipeline
+    # Initialize Phase 1 pipeline (lazy load - will initialize on first request)
     try:
         phase1_pipeline = Phase1Pipeline()
-        phase1_pipeline.initialize()  # Actually load the models!
-        logger.info("Phase 1 pipeline initialized successfully")
+        # Don't force initialization at startup - models will load on first request
+        logger.info("Phase 1 pipeline created (models will load on first request)")
     except Exception as e:
-        logger.error(f"Failed to initialize Phase 1 pipeline: {e}")
+        logger.error(f"Failed to create Phase 1 pipeline: {e}")
         raise
     
     # Initialize Phase 4 conversation pipeline

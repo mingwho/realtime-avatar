@@ -2,8 +2,31 @@
 
 Complete deployment guide for the interactive conversation avatar system.
 
-**Last Updated:** November 16, 2025  
-**Status:** Phase 4 Complete | Deployment Ready
+**Last Updated:** November 17, 2025  
+**Status:** Phase 4 Deployed to GCP | TTS Operational ✅
+
+---
+
+## Quick Status Check
+
+**Current Deployment (Nov 17, 2025):**
+- Instance: `realtime-avatar-test` in `us-east1-c`
+- IP: `35.227.50.79`
+- Status: Containers deployed, TTS working
+- Cost: $0.80/hour (currently stopped)
+
+**Start the instance:**
+```bash
+gcloud compute instances start realtime-avatar-test --zone=us-east1-c
+
+# Wait 30s for Docker to start, then check
+gcloud compute ssh realtime-avatar-test --zone=us-east1-c --command='cd ~/realtime-avatar/runtime && docker compose ps'
+```
+
+**Stop when done:**
+```bash
+gcloud compute instances stop realtime-avatar-test --zone=us-east1-c
+```
 
 ---
 
