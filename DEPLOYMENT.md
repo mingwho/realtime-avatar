@@ -2,31 +2,33 @@
 
 Complete deployment guide for the interactive conversation avatar system.
 
-**Last Updated:** November 17, 2025  
-**Status:** Phase 4 Deployed to GCP | TTS Operational ✅
+**Last Updated:** November 18, 2025  
+**Status:** Phase 4 Fully Operational | TTS + Ditto TensorRT ✅
 
 ---
 
 ## Quick Status Check
 
-**Current Deployment (Nov 17, 2025):**
+**Current Deployment (Nov 18, 2025):**
 - Instance: `realtime-avatar-test` in `us-east1-c`
-- IP: `35.227.50.79`
-- Status: Containers deployed, TTS working
-- Cost: $0.80/hour (currently stopped)
+- IP: `34.23.8.176`
+- Status: TTS + Ditto TensorRT working ✅
+- Performance: TTS 1.19x RTF, Video 1.48x RTF
+- Cost: $0.80/hour (running)
 
-**Start the instance:**
+**Check service health:**
 ```bash
-gcloud compute instances start realtime-avatar-test --zone=us-east1-c
-
-# Wait 30s for Docker to start, then check
-gcloud compute ssh realtime-avatar-test --zone=us-east1-c --command='cd ~/realtime-avatar/runtime && docker compose ps'
+gcloud compute ssh realtime-avatar-test --zone=us-east1-c --command='
+  curl -s http://localhost:8001/health | python3 -m json.tool
+'
 ```
 
 **Stop when done:**
 ```bash
 gcloud compute instances stop realtime-avatar-test --zone=us-east1-c
 ```
+
+> **💡 Troubleshooting Tip:** When solving complex integration issues, check the archived documentation in `docs/archive/` for implementation hints, benchmarks, and troubleshooting patterns. For example, `docs/TENSORRT_SETUP.md` contains detailed TensorRT installation sequences and performance data.
 
 ---
 

@@ -106,6 +106,16 @@ RUN pip install --no-cache-dir --no-deps TTS==0.22.0 && \
     'gruut[de,es,fr]==2.2.3' \
     'spacy>=3'
 
+# Install TensorRT for Ditto (must be installed before other dependencies)
+# Install in specific order: tensorrt-libs -> tensorrt -> cuda-python
+RUN pip install --no-cache-dir \
+    tensorrt-libs==8.6.1 \
+    --index-url https://pypi.nvidia.com && \
+    pip install --no-cache-dir --no-build-isolation \
+    tensorrt==8.6.1 && \
+    pip install --no-cache-dir \
+    cuda-python==12.1.0
+
 # Install Ditto-specific dependencies
 # Force numpy==1.26.4 to avoid TTS conflicts (1.22.0 too old for scipy)
 RUN pip install --no-cache-dir \
@@ -139,6 +149,10 @@ RUN pip install --no-cache-dir \
 
 # Clone Ditto repository
 RUN git clone https://github.com/antgroup/ditto-talkinghead.git /app/ditto-talkinghead
+
+# Fix NumPy compatibility for TensorRT (np.atan2 deprecated in NumPy 1.24+)
+RUN sed -i 's/np\.atan2/np.arctan2/g' \
+    /app/ditto-talkinghead/core/aux_models/mediapipe_landmark478.py || true
 
 # Download Ditto models - mount these from host or skip for now
 # Models will be mounted from host at runtime via -v flag

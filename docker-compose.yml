@@ -17,6 +17,8 @@ services:
       - model-cache:/root/.cache
       # Shared output directory
       - gpu-output:/tmp/gpu-service-output
+      # Ditto checkpoints (mounted from host)
+      - ~/ditto-talkinghead:/app/ditto-checkpoints:ro
     environment:
       - PORT=8001
       - HOST=0.0.0.0

@@ -28,18 +28,19 @@ class DittoModel:
         self.data_root = None
         self.cfg_pkl = None
         
-    def initialize(self, data_root: Optional[str] = None, cfg_pkl: Optional[str] = None):
+    def initialize(self, data_root: Optional[str] = None, cfg_pkl: Optional[str] = None, use_tensorrt: bool = True):
         """
         Initialize Ditto StreamSDK with models.
         
         Args:
-            data_root: Path to model checkpoints (default: ./checkpoints/ditto_pytorch)
-            cfg_pkl: Path to config file (default: ./checkpoints/ditto_cfg/v0.4_hubert_cfg_pytorch.pkl)
+            data_root: Path to model checkpoints (default: auto-detect TRT or PyTorch)
+            cfg_pkl: Path to config file (default: auto-detect TRT or PyTorch config)
+            use_tensorrt: Whether to use TensorRT engines (default: True for CUDA)
         """
         if self._initialized:
             return
             
-        logger.info(f"Initializing Ditto model on {self.device}...")
+        logger.info(f"Initializing Ditto model on {self.device} (TensorRT: {use_tensorrt})...")
         start_time = time.time()
         
         try:
@@ -53,15 +54,30 @@ class DittoModel:
             # Import here to avoid issues if ditto isn't available
             from stream_pipeline_offline import StreamSDK
             
-            # Set default paths relative to ditto-talkinghead directory
+            # Auto-detect TensorRT or PyTorch checkpoints
             if data_root is None:
-                data_root = "./checkpoints/ditto_pytorch"
+                trt_path = "/app/ditto-checkpoints/ditto_trt_Ampere_Plus"
+                trt_exists = os.path.exists(trt_path)
+                logger.info(f"TensorRT checkpoint check: use_tensorrt={use_tensorrt}, path_exists={trt_exists}")
+                
+                if use_tensorrt and trt_exists:
+                    data_root = trt_path
+                    logger.info("✅ Using TensorRT Ampere+ engines")
+                else:
+                    data_root = "/app/ditto-talkinghead/checkpoints/ditto_pytorch"
+                    logger.info(f"Using PyTorch models (TRT disabled or path missing)")
+                    
             if cfg_pkl is None:
-                # Use fast config if available, fallback to default
-                fast_cfg = "./checkpoints/ditto_cfg/v0.4_hubert_cfg_pytorch_fast.pkl"
-                default_cfg = "./checkpoints/ditto_cfg/v0.4_hubert_cfg_pytorch.pkl"
-                cfg_pkl = fast_cfg if os.path.exists(fast_cfg) else default_cfg
-                logger.info(f"Using config: {os.path.basename(cfg_pkl)}")
+                if use_tensorrt and "trt" in str(data_root):
+                    # TensorRT config
+                    cfg_pkl = "/app/ditto-checkpoints/ditto_cfg/v0.4_hubert_cfg_trt.pkl"
+                    logger.info(f"Using TensorRT config: {os.path.basename(cfg_pkl)}")
+                else:
+                    # PyTorch config
+                    fast_cfg = "/app/ditto-talkinghead/checkpoints/ditto_cfg/v0.4_hubert_cfg_pytorch_fast.pkl"
+                    default_cfg = "/app/ditto-talkinghead/checkpoints/ditto_cfg/v0.4_hubert_cfg_pytorch.pkl"
+                    cfg_pkl = fast_cfg if os.path.exists(fast_cfg) else default_cfg
+                    logger.info(f"Using PyTorch config: {os.path.basename(cfg_pkl)}")
                 
             self.data_root = data_root
             self.cfg_pkl = cfg_pkl
@@ -72,7 +88,7 @@ class DittoModel:
             
             self._initialized = True
             elapsed = time.time() - start_time
-            logger.info(f"Ditto initialized in {elapsed:.2f}s")
+            logger.info(f"Ditto initialized with {os.path.basename(data_root)} in {elapsed:.2f}s")
             
         except Exception as e:
             logger.error(f"Failed to initialize Ditto: {e}")

@@ -4,34 +4,34 @@ Full-stack conversational AI avatar with voice input, intelligent responses, and
 
 ## 🎯 Overview
 
-**Status:** Phase 4 Complete ✅ | **Performance:** ~35-40s per conversation turn
+**Status:** Phase 4 Deployed ✅ | **Performance:** TTS + Video Working on GCP L4
 
 An end-to-end conversational avatar that:
 - 🎤 Listens to **voice input** (Whisper large-v3 ASR)
 - 🧠 Responds intelligently (Qwen-2.5-7B LLM)
 - 🗣️ Speaks in **cloned voice** (XTTS-v2 TTS)
 - 🎭 Animates from **single photo** (Ditto + TensorRT)
-- ⚡ **2x RTF video** generation (TensorRT acceleration)
+- ⚡ **1.48x RTF video** generation (TensorRT acceleration)
 - 🌐 **Web UI** with push-to-talk interface
 - 🔧 Hybrid deployment: Local web + Cloud GPU backend
 
-## 🚀 Latest Performance (Nov 16, 2025)
+## 🚀 Latest Performance (Nov 18, 2025)
 
-**Full Conversation Pipeline:** Voice input → AI response → Video output
+**Full Pipeline Tested on GCP L4 GPU:**
 
-| Component | Performance | Time (17s audio) |
+| Component | Performance | Time (6.4s audio) |
 |-----------|-------------|------------------|
-| ASR (Whisper) | Real-time | ~2s |
-| LLM (Qwen-2.5) | Streaming | ~5s |
-| TTS (XTTS-v2) | **0.70x RTF** | ~12s |
-| Video (Ditto TRT) | **1.23x RTF** | ~21s |
-| **Total Pipeline** | End-to-end | **~35-40s** |
+| TTS (XTTS-v2) | **1.19x RTF** | ~8.4s |
+| Video (Ditto TRT) | **1.48x RTF** | ~9.5s |
+| **Combined** | End-to-end | **~18s** |
 
 **Key Metrics:**
-- Interactive conversation: ~35-40s per turn
-- TensorRT video: 2.5x faster than PyTorch
-- GPU memory: 12GB used (L4 has 24GB)
-- Web UI: Push-to-talk, real-time feedback
+- Video generation: **1.48x RTF** with TensorRT ⚡
+- TensorRT speedup: 2.5x vs PyTorch baseline
+- GPU memory: ~7GB used (L4 has 24GB)
+- Quality: Excellent lip sync and voice cloning ✅
+
+> **💡 Tip:** Check archived docs in `docs/archive/` for troubleshooting hints and implementation details
 
 📊 [Detailed benchmarks →](PERFORMANCE.md)
 

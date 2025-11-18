@@ -160,8 +160,9 @@ async def startup():
             raise RuntimeError("Ditto backend requested but not available")
         avatar_model = DittoModel()
         avatar_model.device = device
-        # Ditto will initialize when first called (needs to be in ditto-talkinghead directory)
-        logger.info("✅ Ditto model loaded (will initialize on first use)")
+        # Initialize Ditto (will auto-detect TensorRT or PyTorch checkpoints)
+        avatar_model.initialize()
+        logger.info("✅ Ditto model initialized")
     elif avatar_backend_name == "liveportrait":
         if LivePortraitModel is None:
             raise RuntimeError("LivePortrait backend requested but not available")
