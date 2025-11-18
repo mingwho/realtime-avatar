@@ -36,19 +36,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Setup Event Listeners
 function setupEventListeners() {
-    // Push-to-talk: mousedown/mouseup for desktop
-    recordBtn.addEventListener('mousedown', startRecording);
-    recordBtn.addEventListener('mouseup', stopRecording);
-    
-    // Push-to-talk: touchstart/touchend for mobile
-    recordBtn.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        startRecording();
-    });
-    recordBtn.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        stopRecording();
-    });
+    // Click to toggle recording: click to start, click to stop
+    recordBtn.addEventListener('click', toggleRecording);
     
     // Clear conversation
     clearBtn.addEventListener('click', clearConversation);
@@ -63,7 +52,16 @@ function setupEventListeners() {
     });
 }
 
-// Check Server Health
+// Toggle Recording (Click to Start/Stop)
+function toggleRecording() {
+    if (isRecording) {
+        stopRecording();
+    } else {
+        startRecording();
+    }
+}
+
+// Start Recording
 async function checkServerHealth() {
     try {
         const response = await fetch(`${API_BASE_URL}/health`);
@@ -114,7 +112,7 @@ async function startRecording() {
         
         // Update UI
         recordBtn.classList.add('recording');
-        recordingHint.textContent = 'Recording... Release to send';
+        recordingHint.textContent = 'Click to stop recording';
         updateStatus('🎙️ Listening', 'recording');
         
     } catch (error) {
@@ -133,7 +131,7 @@ function stopRecording() {
     
     // Update UI
     recordBtn.classList.remove('recording');
-    recordingHint.textContent = 'Hold to speak';
+    recordingHint.textContent = 'Click to record';
 }
 
 // Process Recording

@@ -2,11 +2,19 @@
 
 **Last Updated:** November 18, 2025  
 **Current Phase:** Phase 4 Fully Operational with Conversation Pipeline ✅  
-**Performance:** TTS 1.19x RTF, Video 1.48x RTF on L4 GPU, ASR 2.7s init
+**Performance:** TTS 1.19x RTF, Video 1.48x RTF on L4 GPU, ASR 2.7s init  
+**Web UI:** Click-to-toggle recording implemented ✅
 
-## 🎉 Latest Achievement: Full Conversation Pipeline Operational!
+## 🎉 Latest Achievement: Web UI Updated for Better UX!
 
 **Date:** November 18, 2025
+
+### Web UI Improvements ✅
+
+Changed microphone button interaction from "push-to-talk" (hold/release) to simple "click-to-toggle" for better user experience:
+- **Click once** to start recording
+- **Click again** to stop and send
+- Clear visual feedback with button color and text changes
 
 ### Complete Voice-to-Avatar Pipeline Working ✅
 
