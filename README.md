@@ -1,7 +1,7 @@
 # Realtime Avatar: Interactive Conversational Avatar
 Full-stack conversational AI avatar with voice input, intelligent responses, and realistic video synthesis.
 
-Uploading bruce-avatar-2.mov…
+https://github.com/user-attachments/assets/c406532b-100b-4d00-b541-79c797510cae
 
 ## 🎯 Overview
 
