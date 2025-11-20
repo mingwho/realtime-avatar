@@ -101,6 +101,7 @@ Be natural, warm, and engaging in your communication style."""
     def split_into_sentences(self, text: str) -> List[str]:
         """
         Split text into sentence chunks for streaming.
+        Handles common abbreviations like D.C., Mr., Dr., etc.
         
         Args:
             text: Text to split
@@ -108,8 +109,33 @@ Be natural, warm, and engaging in your communication style."""
         Returns:
             List of sentence strings
         """
+        # Handle common abbreviations by temporarily replacing periods
+        abbreviations = {
+            'D.C.': 'DC_TEMP',
+            'Mr.': 'MR_TEMP',
+            'Mrs.': 'MRS_TEMP',
+            'Ms.': 'MS_TEMP',
+            'Dr.': 'DR_TEMP',
+            'Jr.': 'JR_TEMP',
+            'Sr.': 'SR_TEMP',
+            'U.S.': 'US_TEMP',
+            'U.K.': 'UK_TEMP',
+            'etc.': 'ETC_TEMP',
+            'vs.': 'VS_TEMP',
+            'e.g.': 'EG_TEMP',
+            'i.e.': 'IE_TEMP',
+        }
+        
+        # Replace abbreviations temporarily
+        protected_text = text
+        replacements = {}
+        for abbr, temp in abbreviations.items():
+            if abbr in protected_text:
+                protected_text = protected_text.replace(abbr, temp)
+                replacements[temp] = abbr
+        
         # Split on sentence boundaries (.!?) followed by space or end
-        sentences = re.split(r'([.!?]+(?:\s+|$))', text)
+        sentences = re.split(r'([.!?]+(?:\s+|$))', protected_text)
         
         # Rejoin sentences with their punctuation
         chunks = []
@@ -117,11 +143,19 @@ Be natural, warm, and engaging in your communication style."""
             sentence = sentences[i].strip()
             punctuation = sentences[i + 1].strip() if i + 1 < len(sentences) else ''
             if sentence:
-                chunks.append(sentence + punctuation)
+                chunk = sentence + punctuation
+                # Restore abbreviations
+                for temp, abbr in replacements.items():
+                    chunk = chunk.replace(temp, abbr)
+                chunks.append(chunk)
         
         # Handle any remaining text
         if len(sentences) % 2 == 1 and sentences[-1].strip():
-            chunks.append(sentences[-1].strip())
+            remaining = sentences[-1].strip()
+            # Restore abbreviations
+            for temp, abbr in replacements.items():
+                remaining = remaining.replace(temp, abbr)
+            chunks.append(remaining)
         
         # Filter out empty chunks and very short ones (< 3 words)
         chunks = [c for c in chunks if len(c.split()) >= 3]
