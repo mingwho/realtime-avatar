@@ -2,9 +2,10 @@
 Runtime service - Main FastAPI application
 Handles Phase 1: Script → Video generation
 Handles Phase 4: Interactive conversation with voice input
+Handles Phase 5: Streaming conversation with progressive video chunks
 """
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Dict
@@ -13,10 +14,13 @@ import os
 import uuid
 from datetime import datetime
 import shutil
+import json
+import asyncio
 
 from config import settings, get_settings
 from pipelines.phase1_script import Phase1Pipeline
-from pipelines.conversation_pipeline import ConversationPipeline# Configure logging
+from pipelines.conversation_pipeline import ConversationPipeline
+from pipelines.streaming_conversation import StreamingConversationPipeline# Configure logging
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper()),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -42,12 +46,13 @@ app.add_middleware(
 # Initialize pipelines (will lazy-load models)
 phase1_pipeline: Optional[Phase1Pipeline] = None
 conversation_pipeline: Optional[ConversationPipeline] = None
+streaming_pipeline: Optional[StreamingConversationPipeline] = None
 
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize models on startup"""
-    global phase1_pipeline, conversation_pipeline
+    global phase1_pipeline, conversation_pipeline, streaming_pipeline
     logger.info(f"Starting Realtime Avatar Runtime in {settings.mode} mode on {settings.device}")
     logger.info(f"Video resolution: {settings.video_resolution}, FPS: {settings.video_fps}")
     
@@ -79,6 +84,22 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Failed to initialize conversation pipeline: {e}")
         logger.warning("Conversation features will be unavailable")
+    
+    # Initialize Phase 5 streaming pipeline
+    try:
+        streaming_pipeline = StreamingConversationPipeline(
+            reference_image="bruce_haircut_small.jpg",
+            reference_audio="bruce_en_sample.wav",
+            output_dir="outputs/conversations",
+            device=settings.device,
+            use_tensorrt=True,
+            max_parallel_chunks=2,  # Process 2 chunks in parallel
+        )
+        streaming_pipeline.initialize()
+        logger.info("Phase 5 streaming conversation pipeline initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize streaming pipeline: {e}")
+        logger.warning("Streaming conversation features will be unavailable")
 
 
 @app.on_event("shutdown")
@@ -411,6 +432,87 @@ async def process_conversation(
         # Clean up temp file
         if os.path.exists(temp_path):
             os.remove(temp_path)
+
+
+@app.post("/api/v1/conversation/stream")
+async def process_conversation_stream(
+    audio: UploadFile = File(...),
+    language: str = "en",
+    conversation_history: Optional[str] = None,
+):
+    """
+    Streaming conversation pipeline: Audio → ASR → LLM → TTS + Video chunks.
+    Phase 5: Progressive video generation with reduced time-to-first-frame.
+    
+    Returns Server-Sent Events (SSE) stream with chunks as they're generated.
+    """
+    if not streaming_pipeline:
+        raise HTTPException(status_code=503, detail="Streaming pipeline not initialized")
+    
+    # Save uploaded audio BEFORE creating generator
+    job_id = f"stream_{uuid.uuid4().hex[:8]}"
+    temp_path = f"/tmp/audio_uploads/{job_id}.wav"
+    os.makedirs("/tmp/audio_uploads", exist_ok=True)
+    
+    # Save audio synchronously before yielding
+    with open(temp_path, "wb") as f:
+        shutil.copyfileobj(audio.file, f)
+    
+    # Parse conversation history if provided
+    history = None
+    if conversation_history:
+        try:
+            history = json.loads(conversation_history)
+        except json.JSONDecodeError:
+            logger.warning("Invalid conversation history JSON, ignoring")
+    
+    async def event_generator():
+        """Generate SSE events for each chunk"""
+        try:
+            # Process conversation with streaming
+            async for event in streaming_pipeline.process_conversation_streaming(
+                audio_path=temp_path,
+                conversation_history=history,
+                job_id=job_id,
+                language=language,
+            ):
+                # Format as SSE event
+                event_type = event["type"]
+                event_data = event["data"]
+                
+                # Add video URL for video chunks
+                if event_type == "video_chunk":
+                    video_path = event_data.get("video_path")
+                    if video_path:
+                        video_filename = os.path.basename(video_path)
+                        event_data["video_url"] = f"/api/v1/videos/{video_filename}"
+                
+                # Send SSE event
+                yield f"event: {event_type}\n"
+                yield f"data: {json.dumps(event_data)}\n\n"
+                
+        except Exception as e:
+            logger.error(f"[{job_id}] Streaming conversation failed: {e}", exc_info=True)
+            error_event = {
+                "error": str(e),
+                "job_id": job_id,
+            }
+            yield f"event: error\n"
+            yield f"data: {json.dumps(error_event)}\n\n"
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        }
+    )
 
 
 if __name__ == "__main__":
