@@ -258,9 +258,121 @@ Target metrics:
 - Stall rate: < 5% (currently ~30-50%)
 - Smooth playback: no gaps between chunks
 
+## Video Optimization Deep Dive
+
+### What is `faststart`?
+
+`faststart` moves the MP4 moov atom (metadata) to the beginning of the file, enabling progressive playback. Without it, browsers must download the entire file before playing.
+
+**Normal MP4:**
+```
+[ftyp][mdat: 99% of file][moov: metadata]
+         ↑ Browser downloads all this before reading moov
+```
+
+**With faststart:**
+```
+[ftyp][moov: metadata][mdat: video data]
+      ↑ Browser reads metadata immediately, plays while downloading
+```
+
+**Impact:** Instant playback start, eliminates download stalls
+
+### Recommended Quick Wins
+
+**1. Enable faststart (CRITICAL)**
+```python
+'-movflags', '+faststart'  # Progressive download
+```
+- Zero quality cost
+- Eliminates most stalls
+- 2-5s TTFF improvement
+
+**2. Lower frame rate to 18 FPS**
+```python
+'-r', '18'  # Down from 25-30 FPS
+```
+- 40% faster generation
+- 40% smaller files
+- Talking heads look fine at 18 FPS
+
+**3. Codec optimization**
+```python
+'-preset', 'veryfast',     # Faster encoding
+'-profile:v', 'baseline',  # Max compatibility
+'-crf', '28',              # Balanced quality/size
+```
+- 20-30% faster encoding
+- 10-15% smaller files
+- Better browser compatibility
+
+**4. Audio optimization**
+```python
+'-ar', '24000',  # 24kHz (down from 48kHz)
+'-ac', '1',      # Mono
+'-b:a', '64k',   # 64kbps (down from 192kbps)
+```
+- 10-15% smaller files
+- Speech quality preserved
+
+### Full FFmpeg Command
+
+```python
+def optimize_video_for_streaming(input_path: str, output_path: str):
+    """Optimize MP4 for web streaming"""
+    cmd = [
+        'ffmpeg', '-y',
+        '-i', input_path,
+        
+        # Video optimization
+        '-c:v', 'libx264',
+        '-preset', 'veryfast',      # Fast encoding
+        '-profile:v', 'baseline',   # Max compatibility
+        '-level', '3.0',
+        '-crf', '28',               # Balanced quality
+        '-r', '18',                 # 18 FPS
+        '-movflags', '+faststart',  # Progressive download ⭐
+        
+        # Audio optimization
+        '-c:a', 'aac',
+        '-ar', '24000',             # 24kHz
+        '-ac', '1',                 # Mono
+        '-b:a', '64k',              # 64kbps
+        
+        output_path
+    ]
+    subprocess.run(cmd, check=True)
+```
+
+### Expected Improvements
+
+**Before optimizations:**
+- Generation: 18s for 10s video (RTF: 1.8x)
+- File size: ~5MB per chunk
+- TTFF: ~23s
+- Stall rate: 30-50%
+
+**After quick wins:**
+- Generation: ~10s for 10s video (RTF: 1.0x) 🎯
+- File size: ~2.5MB per chunk (50% reduction)
+- TTFF: ~8-10s (60% improvement)
+- Stall rate: <5% (95% reduction)
+
+### Optional Optimizations
+
+**If still not fast enough:**
+- Lower resolution to 384x512 (test quality first)
+- Aggressive compression: CRF 30
+- Shorter keyframe interval for better seeking
+
+**Don't bother with:**
+- H.265/VP9 codecs (slower encoding)
+- Hardware encoding (limited L4 support)
+- Adaptive bitrate (overkill for short chunks)
+
 ## Next Session Plan
 
-1. Implement video compression (faststart flag is critical)
-2. Add blob URL fallback with progress tracking
-3. Test stall rate improvement
-4. If still issues, implement preloading strategy
+1. **Implement video optimizations** (faststart + FPS + codec + audio)
+2. **Deploy and test** stall rate improvement
+3. **If needed:** Add blob URL fallback with progress tracking
+4. **If needed:** Implement preloading strategy
