@@ -1,7 +1,0 @@
-{
-  "scenario_id": "gold_zh_002",
-  "scenario_name": "Gold Set: zh_002",
-  "status": "failed",
-  "error": "Client error '400 Bad Request' for url 'http://runtime:8000/api/v1/generate'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400",
-  "evaluator_total_time_s": 0.004658222198486328
-}

@@ -1,7 +1,0 @@
-{
-  "scenario_id": "en_short",
-  "scenario_name": "English Short",
-  "status": "failed",
-  "error": "Client error '404 Not Found' for url 'http://runtime:8000/api/v1/videos/20251108_050106_418021ce_video.mp4'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
-  "evaluator_total_time_s": 33.667561531066895
-}

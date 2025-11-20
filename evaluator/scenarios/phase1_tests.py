@@ -21,7 +21,7 @@ class Phase1TestScenarios:
                 'name': 'English Short',
                 'text': "Hello! I'm Bruce's digital avatar.",
                 'language': 'en',
-                'reference_image': 'bruce_neutral.jpg',
+                'reference_image': 'bruce_haircut_small.jpg',
                 'expected_duration_range': (1.0, 3.0)  # seconds
             },
             {
@@ -29,7 +29,7 @@ class Phase1TestScenarios:
                 'name': 'Chinese Short',
                 'text': "你好！我是布鲁斯的数字化身。",
                 'language': 'zh-cn',
-                'reference_image': 'bruce_neutral.jpg',
+                'reference_image': 'bruce_haircut_small.jpg',
                 'expected_duration_range': (1.0, 3.0)
             },
             {
@@ -37,7 +37,7 @@ class Phase1TestScenarios:
                 'name': 'Spanish Short',
                 'text': "¡Hola! Soy el avatar digital de Bruce.",
                 'language': 'es',
-                'reference_image': 'bruce_neutral.jpg',
+                'reference_image': 'bruce_haircut_small.jpg',
                 'expected_duration_range': (1.0, 3.0)
             },
             # Medium-length tests - Re-enabled with GPU acceleration

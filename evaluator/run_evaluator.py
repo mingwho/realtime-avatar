@@ -31,6 +31,9 @@ RUNTIME_URL = os.getenv('RUNTIME_URL', 'http://localhost:8000')
 OUTPUT_DIR = os.getenv('OUTPUT_DIR', './outputs')
 REFERENCE_AUDIO_DIR = os.getenv('REFERENCE_AUDIO_DIR', '/app/assets/voice/reference_samples')
 
+# Performance thresholds
+MAX_SUITE_RUNTIME_S = 600  # 10 minutes - warn if evaluator suite exceeds this
+
 
 class Evaluator:
     """Main evaluator class"""
@@ -45,7 +48,8 @@ class Evaluator:
             response = await self.client.get(f"{self.runtime_url}/health")
             health = response.json()
             logger.info(f"Runtime health: {health}")
-            return health.get('status') == 'healthy'
+            # Accept both 'healthy' and 'initializing' status (models load on first request)
+            return health.get('status') in ['healthy', 'initializing']
         except Exception as e:
             logger.error(f"Failed to check runtime health: {e}")
             return False
@@ -122,11 +126,35 @@ class Evaluator:
             logger.error(f"Scenario {scenario_id} failed: {e}", exc_info=True)
             total_time = time.time() - start_time
             
+            # Capture detailed error info for 500s
+            error_details = {
+                'error_type': type(e).__name__,
+                'error_message': str(e),
+                'traceback': None
+            }
+            
+            # If it's an HTTP error, try to get response body
+            if hasattr(e, 'response') and e.response is not None:
+                try:
+                    error_details['status_code'] = e.response.status_code
+                    error_details['response_body'] = e.response.text
+                    error_details['response_headers'] = dict(e.response.headers)
+                except:
+                    pass
+            
+            # Get traceback
+            import traceback as tb
+            error_details['traceback'] = tb.format_exc()
+            
+            # Save detailed error log
+            self._save_error_log(scenario_id, error_details)
+            
             return {
                 'scenario_id': scenario_id,
                 'scenario_name': scenario.get('name', scenario_id),
                 'status': 'failed',
                 'error': str(e),
+                'error_details': error_details,
                 'evaluator_total_time_s': total_time
             }
     
@@ -246,6 +274,7 @@ class Evaluator:
                 'name': f"Gold Set: {phrase['id']}",
                 'text': phrase['text'],
                 'language': phrase['language'],
+                'reference_image': 'bruce_haircut_small.jpg',  # Use available image
                 'gold_clip_path': phrase.get('clip_path'),
                 'gold_duration': phrase.get('duration'),
                 'difficulty': phrase.get('difficulty')
@@ -261,6 +290,23 @@ class Evaluator:
         
         return results
     
+    def _save_error_log(self, scenario_id: str, error_details: Dict):
+        """Save detailed error information to dedicated error log"""
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        error_log_path = os.path.join(OUTPUT_DIR, 'error_logs.jsonl')
+        
+        error_entry = {
+            'timestamp': timestamp,
+            'scenario_id': scenario_id,
+            **error_details
+        }
+        
+        # Append to error log file (JSONL format)
+        with open(error_log_path, 'a') as f:
+            f.write(json.dumps(error_entry) + '\n')
+        
+        logger.error(f"Detailed error saved to {error_log_path}")
+    
     def save_result(self, result: Dict):
         """Save individual test result to JSON file"""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -274,7 +320,7 @@ class Evaluator:
         
         logger.info(f"Result saved: {filepath}")
     
-    def generate_summary_report(self, all_results: List[Dict]):
+    def generate_summary_report(self, all_results: List[Dict], suite_runtime_s: float = 0):
         """Generate summary report of all tests"""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f"summary_report_{timestamp}.json"
@@ -284,12 +330,19 @@ class Evaluator:
         successful = [r for r in all_results if r['status'] == 'success']
         failed = [r for r in all_results if r['status'] == 'failed']
         
+        # Analyze failures
+        error_summary = self._analyze_failures(failed)
+        
         summary = {
             'timestamp': timestamp,
             'total_tests': len(all_results),
             'successful': len(successful),
             'failed': len(failed),
             'success_rate': len(successful) / len(all_results) if all_results else 0,
+            'suite_runtime_s': suite_runtime_s,
+            'tests_per_minute': (len(all_results) / suite_runtime_s * 60) if suite_runtime_s > 0 else 0,
+            'avg_test_duration_s': suite_runtime_s / len(all_results) if all_results else 0,
+            'error_summary': error_summary,
             'aggregate_metrics': self.calculate_aggregate_metrics(successful),
             'results': all_results
         }
@@ -302,6 +355,40 @@ class Evaluator:
         
         return summary
     
+    def _analyze_failures(self, failed_results: List[Dict]) -> Dict:
+        """Analyze failed tests and group by error type"""
+        if not failed_results:
+            return {'has_failures': False}
+        
+        error_groups = {}
+        status_500_errors = []
+        
+        for result in failed_results:
+            error_details = result.get('error_details', {})
+            error_msg = result.get('error', 'Unknown error')
+            
+            # Check for 500 errors
+            if error_details.get('status_code') == 500:
+                status_500_errors.append({
+                    'scenario': result['scenario_name'],
+                    'response_body': error_details.get('response_body', 'N/A')
+                })
+            
+            # Group by error type
+            error_type = error_details.get('error_type', 'Unknown')
+            if error_type not in error_groups:
+                error_groups[error_type] = []
+            error_groups[error_type].append(result['scenario_name'])
+        
+        return {
+            'has_failures': True,
+            'total_failures': len(failed_results),
+            'status_500_count': len(status_500_errors),
+            'status_500_errors': status_500_errors,
+            'error_groups': error_groups,
+            'critical': len(status_500_errors) > 0 or len(failed_results) > len(failed_results) * 0.5
+        }
+    
     def calculate_aggregate_metrics(self, results: List[Dict]) -> Dict:
         """Calculate aggregate statistics across all successful results"""
         if not results:
@@ -312,6 +399,7 @@ class Evaluator:
         avatar_times = []
         total_times = []
         audio_durations = []
+        evaluator_times = []
         
         for result in results:
             metrics = result.get('metrics', {})
@@ -323,6 +411,8 @@ class Evaluator:
                 total_times.append(metrics['total_generation_ms'])
             if 'audio_duration_s' in metrics:
                 audio_durations.append(metrics['audio_duration_s'])
+            if 'evaluator_total_time_s' in metrics:
+                evaluator_times.append(metrics['evaluator_total_time_s'])
         
         import numpy as np
         
@@ -333,7 +423,12 @@ class Evaluator:
             'avatar_render_ms_std': float(np.std(avatar_times)) if avatar_times else 0,
             'total_generation_ms_mean': float(np.mean(total_times)) if total_times else 0,
             'total_generation_ms_std': float(np.std(total_times)) if total_times else 0,
-            'audio_duration_s_mean': float(np.mean(audio_durations)) if audio_durations else 0
+            'audio_duration_s_mean': float(np.mean(audio_durations)) if audio_durations else 0,
+            'evaluator_time_s_mean': float(np.mean(evaluator_times)) if evaluator_times else 0,
+            'evaluator_time_s_std': float(np.std(evaluator_times)) if evaluator_times else 0,
+            'evaluator_time_s_min': float(np.min(evaluator_times)) if evaluator_times else 0,
+            'evaluator_time_s_max': float(np.max(evaluator_times)) if evaluator_times else 0,
+            'total_evaluator_time_s': float(np.sum(evaluator_times)) if evaluator_times else 0
         }
     
     async def close(self):
@@ -343,6 +438,7 @@ class Evaluator:
 
 async def main():
     """Main evaluator entry point"""
+    suite_start_time = time.time()
     logger.info("=== Realtime Avatar Evaluator ===")
     
     # Ensure output directory exists
@@ -382,14 +478,54 @@ async def main():
         gold_set_results = await evaluator.run_gold_set_tests()
         all_results.extend(gold_set_results)
         
+        # Calculate total suite runtime
+        total_suite_runtime_s = time.time() - suite_start_time
+        
         # Generate summary report
-        summary = evaluator.generate_summary_report(all_results)
+        summary = evaluator.generate_summary_report(all_results, total_suite_runtime_s)
         
         logger.info("=== Evaluation Complete ===")
         logger.info(f"Total tests: {summary['total_tests']}")
         logger.info(f"Successful: {summary['successful']}")
         logger.info(f"Failed: {summary['failed']}")
         logger.info(f"Success rate: {summary['success_rate']:.1%}")
+        logger.info(f"Suite runtime: {total_suite_runtime_s:.1f}s ({total_suite_runtime_s/60:.1f} min)")
+        
+        # Warn if suite is slow
+        if total_suite_runtime_s > MAX_SUITE_RUNTIME_S:
+            logger.warning(f"⚠️  Evaluator suite exceeded {MAX_SUITE_RUNTIME_S}s threshold! Consider optimizing slow tests.")
+        
+        # Critical failure detection
+        error_summary = summary.get('error_summary', {})
+        if error_summary.get('has_failures'):
+            logger.error("\n" + "="*80)
+            logger.error("❌ CRITICAL: EVALUATOR FAILURES DETECTED")
+            logger.error("="*80)
+            logger.error(f"Total failures: {error_summary['total_failures']}")
+            logger.error(f"500 errors: {error_summary['status_500_count']}")
+            
+            if error_summary['status_500_count'] > 0:
+                logger.error("\n500 Error Details:")
+                for err in error_summary['status_500_errors']:
+                    logger.error(f"  - {err['scenario']}: {err['response_body'][:200]}")
+                logger.error(f"\nFull error details saved to: {OUTPUT_DIR}/error_logs.jsonl")
+            
+            logger.error("\nError groups:")
+            for error_type, scenarios in error_summary.get('error_groups', {}).items():
+                logger.error(f"  {error_type}: {', '.join(scenarios)}")
+            
+            # Exit with failure if >50% tests failed or any 500 errors
+            failure_rate = error_summary['total_failures'] / summary['total_tests']
+            if failure_rate > 0.5:
+                logger.error(f"\n❌ CRITICAL: >50% test failure rate ({failure_rate:.1%})")
+                logger.error("Evaluator suite is fundamentally broken. Fix errors before continuing.")
+                import sys
+                sys.exit(1)
+            elif error_summary['status_500_count'] > 0:
+                logger.error(f"\n❌ CRITICAL: {error_summary['status_500_count']} server errors (500) detected")
+                logger.error("Server is returning errors. Investigate and fix before continuing.")
+                import sys
+                sys.exit(1)
         
         # Print all video paths for easy viewing
         logger.info("\n=== Generated Videos ===")

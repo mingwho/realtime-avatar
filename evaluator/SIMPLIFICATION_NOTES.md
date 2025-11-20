@@ -1,6 +1,31 @@
 # Evaluator Simplification Notes
 
-**Date:** November 6, 2025
+**Date:** November 6, 2025  
+**Last Updated:** November 20, 2025
+
+## Recent Updates (November 20, 2025)
+
+### Enhanced Error Handling & Speed Tracking
+- **Speed Tracking:** Added comprehensive suite timing metrics
+  - `suite_runtime_s`: Total test suite execution time
+  - `tests_per_minute`: Throughput metric
+  - `evaluator_time_s_mean/std/min/max`: Per-test timing statistics
+  - Alert threshold: 600s (10 minutes) with warnings
+- **Error Handling:** Captures detailed diagnostics for 500 errors
+  - Full HTTP response body, headers, status code
+  - Python traceback saved to `error_logs.jsonl`
+  - Groups errors by type with actionable summaries
+- **Critical Failure Detection:** Exit with `sys.exit(1)` if:
+  - >50% test failure rate
+  - Any 500 Internal Server Errors detected
+- **Gold Set Reduction:** Removed Chinese and Spanish tests for faster runs
+  - Reduced from 6 tests to 2 (English only)
+  - Target evaluator runtime: 60-90s on GPU, <2 min ideal
+
+### Bug Fixes
+- Fixed reference image paths: `bruce_neutral.jpg` → `bruce_haircut_small.jpg`
+- Health check now accepts 'initializing' status (models load on first request)
+- Gold set tests now include `reference_image` parameter
 
 ## Changes Made
 

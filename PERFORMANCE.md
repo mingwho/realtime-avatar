@@ -6,6 +6,7 @@ Complete performance analysis and benchmarking results for the Realtime Avatar s
 
 - [Latest: End-to-End Conversation Pipeline](#latest-end-to-end-conversation-pipeline)
 - [Current Performance (TensorRT Optimized)](#current-performance-tensorrt-optimized)
+- [Evaluator Performance Benchmarks](#evaluator-performance-benchmarks)
 - [Benchmark History](#benchmark-history)
 - [Gold Set Results](#gold-set-results)
 - [Concurrent Workers](#concurrent-workers)
@@ -135,6 +136,45 @@ After 5 installation attempts, successfully achieved **2.5x speedup** over PyTor
 ✅ **Voice Cloning:** Excellent voice match with XTTS-v2  
 ✅ **Lip Sync:** Natural mouth movements with Ditto  
 ✅ **Production Ready:** Stable and repeatable results
+
+---
+
+## Evaluator Performance Benchmarks
+
+Track evaluator suite execution time to ensure fast feedback loops and catch performance regressions in the test suite itself.
+
+### Current Evaluator Performance
+
+**Configuration:** Simplified test suite (Phase 1 + Gold Set)  
+**Expected Runtime:** 3-6 minutes (CPU mode), 30-90 seconds (GPU mode)  
+**Alert Threshold:** 10 minutes (600s) - warns if suite becomes too slow
+
+| Hardware | Tests | Suite Runtime | Tests/Min | Avg Test Duration | Date |
+|----------|-------|---------------|-----------|-------------------|------|
+| **M3 Mac MPS** | 12 | 48s | 15.0 | 4.0s | Nov 7, 2025 |
+| **GCP L4 GPU** | 12 | ~60-90s | 8-12 | 5-7.5s | Nov 8, 2025 |
+| **M3 Mac CPU** | 13 | ~15 min | 0.9 | 69s | Nov 6, 2025 |
+
+### Evaluator Metrics Tracked
+
+The evaluator now tracks its own performance:
+
+- **`suite_runtime_s`**: Total time for complete test suite execution
+- **`tests_per_minute`**: Throughput metric (how many tests per minute)
+- **`avg_test_duration_s`**: Average time per test (suite runtime / test count)
+- **`evaluator_time_s_mean/std/min/max`**: Individual test timing statistics
+- **`total_evaluator_time_s`**: Sum of all test execution times (excludes overhead)
+
+### Performance Goals
+
+| Metric | Target | Current (GPU) | Status |
+|--------|--------|---------------|--------|
+| Suite Runtime | < 2 minutes | 60-90s | ✅ On track |
+| Tests/Minute | > 10 | 8-12 | \u26a0\ufe0f Acceptable |
+| Avg Test Duration | < 10s | 5-7.5s | ✅ Good |
+| Alert Threshold | < 10 minutes | 1-1.5 min | ✅ Healthy |
+
+**Note:** Fast evaluator implementation (`fast_evaluator.py`) targets sub-2-minute runtime with parallel execution.
 
 ---
 
