@@ -95,7 +95,7 @@ class Phase1Pipeline:
                     logger.warning(f"Voice sample not found: {voice_sample_path}")
                     voice_sample_path = None
             
-            audio_path, tts_duration_ms, audio_duration_s = self.tts_model.synthesize(
+            audio_path, tts_duration_ms, audio_duration_s = await self.tts_model.synthesize(
                 text=text,
                 language=language,
                 speaker_wav=voice_sample_path,
@@ -115,7 +115,7 @@ class Phase1Pipeline:
             if not os.path.exists(image_path):
                 raise FileNotFoundError(f"Reference image not found: {image_path}")
             
-            video_path, avatar_duration_ms = self.avatar_model.animate(
+            video_path, avatar_duration_ms = await self.avatar_model.animate(
                 audio_path=audio_path,
                 reference_image_path=image_path,
                 output_path=os.path.join("/tmp/gpu-service-output", f"{job_id}_video.mp4"),

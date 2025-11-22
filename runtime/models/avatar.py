@@ -49,7 +49,7 @@ class LivePortraitModel:
         """Check if model is initialized"""
         return self._initialized and self.client and self.client.is_ready()
     
-    def animate(
+    async def animate(
         self,
         audio_path: str,
         reference_image_path: str,
@@ -85,7 +85,7 @@ class LivePortraitModel:
             logger.info(f"Animating avatar: audio={audio_path}, image={reference_image_path}")
             
             # Call GPU service to generate video
-            video_path, _ = self.client.generate_video(
+            video_path, _ = await self.client.generate_video(
                 audio_path=audio_path,
                 reference_image_path=reference_image_path,
                 output_path=output_path,

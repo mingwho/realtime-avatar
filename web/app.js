@@ -4,7 +4,7 @@
  */
 
 // API Configuration
-const API_BASE_URL = 'http://34.138.239.196:8000';
+const API_BASE_URL = 'http://34.26.174.48:8000';
 const USE_STREAMING = true; // Toggle streaming mode
 
 // State Management
@@ -67,8 +67,22 @@ function toggleRecording() {
 // Start Recording
 async function checkServerHealth() {
     try {
-        const response = await fetch(`${API_BASE_URL}/health`);
+        console.log('Checking server health at:', `${API_BASE_URL}/health`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        
+        const response = await fetch(`${API_BASE_URL}/health`, {
+            signal: controller.signal,
+            cache: 'no-cache',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+        clearTimeout(timeoutId);
+        
         const data = await response.json();
+        console.log('Health check response:', data);
         
         if (data.status === 'healthy' && data.models_loaded) {
             updateStatus('Ready', 'ready');
@@ -80,6 +94,7 @@ async function checkServerHealth() {
     } catch (error) {
         updateStatus('Server offline', 'error');
         console.error('Health check failed:', error);
+        console.error('API_BASE_URL:', API_BASE_URL);
     }
 }
 
@@ -194,6 +209,7 @@ async function processStreamingConversation(audioBlob) {
     const decoder = new TextDecoder();
     
     let buffer = '';
+    let shouldCloseStream = false;  // Flag to close stream after chunk 0
     
     // Process stream in real-time
     while (true) {
@@ -201,6 +217,13 @@ async function processStreamingConversation(audioBlob) {
         
         if (done) {
             console.log('Stream completed');
+            break;
+        }
+        
+        // Check if we should close stream after chunk 0
+        if (shouldCloseStream) {
+            console.log('🔌 Closing stream after chunk 0 to free connection');
+            await reader.cancel();
             break;
         }
         
@@ -252,59 +275,25 @@ async function processStreamingConversation(audioBlob) {
                     console.log(`   Generated in: ${chunkTime.toFixed(2)}s`);
                     console.log(`   Video URL: ${event.data.video_url}`);
                     
-                    // For chunk 0 (actual first chunk), preload it before adding to queue
+                    // Add all chunks directly to queue without preloading
+                    // Let the video element handle streaming to avoid connection blocking
+                    videoQueue.push({
+                        url: videoUrl,
+                        index: chunkIndex,
+                        text: event.data.text_chunk,
+                        receiveTime: receiveTime
+                    });
+                    
                     if (chunkIndex === 0) {
                         const ttff = elapsedTime;
-                        updateStatus(`⚡ First chunk (${ttff.toFixed(1)}s TTFF) - Preloading...`, 'loading');
-                        console.log(`⚡ [PERF] TTFF: ${ttff.toFixed(2)}s - Preloading first chunk`);
+                        console.log(`⚡ [PERF] TTFF: ${ttff.toFixed(2)}s - First chunk ready`);
+                        updateStatus(`▶️ Playing chunk 0 (${ttff.toFixed(1)}s TTFF)`, 'loading');
                         
-                        // Start preloading the first chunk
-                        const preloadStart = Date.now();
-                        console.log(`📥 [PERF] Starting first chunk preload: ${videoUrl}`);
-                        
-                        try {
-                            // Use fetch to start downloading
-                            const response = await fetch(videoUrl);
-                            if (!response.ok) {
-                                throw new Error(`HTTP ${response.status}`);
-                            }
-                            
-                            // Create blob from response
-                            const blob = await response.blob();
-                            const blobUrl = URL.createObjectURL(blob);
-                            const preloadTime = (Date.now() - preloadStart) / 1000;
-                            
-                            const downloadSpeed = (blob.size / 1024 / 1024) / preloadTime;
-                            console.log(`✅ [PERF] Chunk 0 preloaded in ${preloadTime.toFixed(2)}s (${(blob.size / 1024 / 1024).toFixed(2)}MB @ ${downloadSpeed.toFixed(2)} MB/s)`);
-                            
-                            // Add to queue with blob URL
-                            videoQueue.push({
-                                url: blobUrl,
-                                index: chunkIndex,
-                                text: event.data.text_chunk,
-                                receiveTime: receiveTime,
-                                isBlob: true  // Mark for cleanup
-                            });
-                            
-                            updateStatus(`▶️ Playing chunk 0`, 'loading');
-                        } catch (err) {
-                            console.error(`❌ [PERF] Chunk 0 preload failed: ${err.message}`);
-                            // Fall back to direct URL
-                            videoQueue.push({
-                                url: videoUrl,
-                                index: chunkIndex,
-                                text: event.data.text_chunk,
-                                receiveTime: receiveTime
-                            });
-                        }
+                        // Mark to close stream after processing current buffer
+                        // Browser connection limit (6 per domain) blocks video loading if stream is open
+                        console.log(`🔌 Will close stream after chunk 0 to allow video downloads`);
+                        shouldCloseStream = true;
                     } else {
-                        // Subsequent chunks - add directly to queue (they can download while previous plays)
-                        videoQueue.push({
-                            url: videoUrl,
-                            index: chunkIndex,
-                            text: event.data.text_chunk,
-                            receiveTime: receiveTime
-                        });
                         updateStatus(`Chunk ${chunkIndex} (${chunkTime.toFixed(1)}s)`, 'loading');
                     }
                     
@@ -325,14 +314,16 @@ async function processStreamingConversation(audioBlob) {
                     updateStatus(`✅ Complete (${totalTime.toFixed(1)}s, ${chunkCount} chunks)`, 'ready');
                     console.log(`Stream complete: ${totalTime.toFixed(1)}s total, ${chunkCount} chunks`);
                     
+                    // Stream already closed via reader.cancel() if needed
+                    
                     // Update conversation history
                     if (saveHistoryCheckbox.checked) {
                         conversationHistory.push(
                             { role: 'user', content: userText },
                             { role: 'assistant', content: responseText }
                         );
-                        saveConversationHistory();
                     }
+                    break;
                     break;
                 
                 case 'error':
@@ -583,24 +574,11 @@ async function playVideoQueue() {
                 await new Promise((resolve) => {
                     avatarVideo.onended = () => {
                         console.log(`✅ Chunk ${chunk.index} finished playing`);
-                        
-                        // Clean up blob URL if this was a preloaded chunk
-                        if (chunk.isBlob) {
-                            URL.revokeObjectURL(chunk.url);
-                            console.log(`🗑️ Cleaned up blob URL for chunk ${chunk.index}`);
-                        }
-                        
                         resolve();
                     };
                 });
             } catch (err) {
                 console.error('❌ Playback error:', err.name, err.message);
-                
-                // Clean up blob URL on error too
-                if (chunk.isBlob) {
-                    URL.revokeObjectURL(chunk.url);
-                    console.log(`🗑️ Cleaned up blob URL after error`);
-                }
                 
                 if (err.name === 'NotAllowedError') {
                     console.error('   User interaction required for autoplay. Please click the video.');

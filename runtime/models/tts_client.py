@@ -5,7 +5,7 @@ Calls external GPU acceleration service instead of running TTS in Docker
 import logging
 import os
 import time
-import requests
+import httpx
 from typing import Optional
 from config import settings
 
@@ -18,6 +18,7 @@ class XTTSClient:
     def __init__(self, service_url: Optional[str] = None):
         self.service_url = service_url or settings.gpu_service_url
         self._initialized = False
+        self._client = httpx.AsyncClient(timeout=300.0)
         
     def initialize(self):
         """Check if GPU service is available"""
@@ -28,25 +29,23 @@ class XTTSClient:
         start_time = time.time()
         
         try:
-            # Check health endpoint
-            response = requests.get(
-                f"{self.service_url}/health",
-                timeout=5
-            )
-            response.raise_for_status()
+            # Check health endpoint (sync for initialization)
+            with httpx.Client(timeout=5.0) as sync_client:
+                response = sync_client.get(f"{self.service_url}/health")
+                response.raise_for_status()
             
-            health_data = response.json()
-            device = health_data.get("device", "unknown")
-            tts_ready = health_data.get("models", {}).get("tts", False)
+                health_data = response.json()
+                device = health_data.get("device", "unknown")
+                tts_ready = health_data.get("models", {}).get("tts", False)
             
-            if not tts_ready:
-                raise RuntimeError("TTS model not ready on GPU service")
+                if not tts_ready:
+                    raise RuntimeError("TTS model not ready on GPU service")
             
             self._initialized = True
             elapsed = time.time() - start_time
             logger.info(f"Connected to GPU service (device={device}) in {elapsed:.2f}s")
             
-        except requests.exceptions.RequestException as e:
+        except httpx.HTTPError as e:
             logger.error(f"Failed to connect to GPU service: {e}")
             raise RuntimeError(f"GPU service unavailable at {self.service_url}") from e
     
@@ -54,7 +53,7 @@ class XTTSClient:
         """Check if service is initialized"""
         return self._initialized
     
-    def synthesize(
+    async def synthesize(
         self,
         text: str,
         language: str = "en",
@@ -120,7 +119,7 @@ class XTTSClient:
             
             logger.info(f"Requesting TTS: lang={lang_code}, text_len={len(text)}")
             
-            # Call GPU service
+            # Call GPU service (ASYNC - doesn't block event loop!)
             payload = {
                 "text": text,
                 "language": lang_code,
@@ -128,10 +127,9 @@ class XTTSClient:
                 "output_path": output_path
             }
             
-            response = requests.post(
+            response = await self._client.post(
                 f"{self.service_url}/tts/generate",
                 json=payload,
-                timeout=300  # 5 min timeout for long texts
             )
             response.raise_for_status()
             
@@ -156,15 +154,16 @@ class XTTSClient:
             
             return output_path, total_time_ms, audio_duration_s
             
-        except requests.exceptions.RequestException as e:
+        except httpx.HTTPError as e:
             logger.error(f"GPU service request failed: {e}")
             raise RuntimeError(f"Failed to communicate with GPU service") from e
         except Exception as e:
             logger.error(f"TTS synthesis failed: {e}", exc_info=True)
             raise
     
-    def cleanup(self):
-        """Cleanup (no-op for HTTP client)"""
+    async def cleanup(self):
+        """Cleanup async client"""
+        await self._client.aclose()
         self._initialized = False
         logger.info("TTS client disconnected")
 

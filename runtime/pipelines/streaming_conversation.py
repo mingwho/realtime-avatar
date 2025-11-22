@@ -313,55 +313,22 @@ Be natural, warm, and engaging in your communication style."""
                 # If splitting failed, use full text as single chunk
                 chunks = [response_text]
             
-            # Process chunks with true parallelism using asyncio.create_task
-            active_tasks = []
-            
+            # Generate chunks sequentially and yield as each completes
+            # Sequential processing required due to GPU service limitations
             for i, text_chunk in enumerate(chunks):
-                # Create task immediately (starts execution in background)
-                task = asyncio.create_task(self.generate_chunk(
+                # Generate chunk (blocks until complete)
+                result = await self.generate_chunk(
                     text_chunk=text_chunk,
                     chunk_index=i,
                     job_id=job_id,
                     language=language,
-                ))
-                active_tasks.append(task)
-                
-                # If we hit max parallel chunks, wait for ONE chunk to complete
-                if len(active_tasks) >= self.max_parallel_chunks:
-                    # Wait for FIRST completed task only
-                    done, pending = await asyncio.wait(
-                        active_tasks,
-                        return_when=asyncio.FIRST_COMPLETED
-                    )
-                    
-                    # Yield ALL completed chunks immediately
-                    for completed_task in done:
-                        result = await completed_task
-                        yield {
-                            "type": "video_chunk",
-                            "data": result,
-                        }
-                    
-                    # Convert pending set back to list
-                    active_tasks = list(pending)
-            
-            # Wait for remaining chunks and yield as they complete
-            while active_tasks:
-                done, pending = await asyncio.wait(
-                    active_tasks,
-                    return_when=asyncio.FIRST_COMPLETED
                 )
                 
-                # Yield ALL completed chunks immediately
-                for completed_task in done:
-                    result = await completed_task
-                    yield {
-                        "type": "video_chunk",
-                        "data": result,
-                    }
-                
-                # Convert pending set back to list
-                active_tasks = list(pending)
+                # Yield immediately after generation completes
+                yield {
+                    "type": "video_chunk",
+                    "data": result,
+                }
 
             # Yield completion
             total_time = time.time() - pipeline_start

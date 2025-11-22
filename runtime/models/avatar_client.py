@@ -5,7 +5,7 @@ Calls external GPU acceleration service for LivePortrait video generation
 import logging
 import os
 import time
-import requests
+import httpx
 from typing import Optional
 from config import settings
 
@@ -18,6 +18,7 @@ class AvatarClient:
     def __init__(self, service_url: Optional[str] = None):
         self.service_url = service_url or settings.gpu_service_url
         self._initialized = False
+        self._client = httpx.AsyncClient(timeout=600.0)
         
     def initialize(self):
         """Check if GPU service is available"""
@@ -29,24 +30,22 @@ class AvatarClient:
         
         try:
             # Check health endpoint
-            response = requests.get(
-                f"{self.service_url}/health",
-                timeout=5
-            )
-            response.raise_for_status()
+            with httpx.Client(timeout=5.0) as sync_client:
+                response = sync_client.get(f"{self.service_url}/health")
+                response.raise_for_status()
             
-            health_data = response.json()
-            device = health_data.get("device", "unknown")
-            avatar_ready = health_data.get("models", {}).get("avatar", False)
+                health_data = response.json()
+                device = health_data.get("device", "unknown")
+                avatar_ready = health_data.get("models", {}).get("avatar", False)
             
-            if not avatar_ready:
-                raise RuntimeError("Avatar model not ready on GPU service")
+                if not avatar_ready:
+                    raise RuntimeError("Avatar model not ready on GPU service")
             
             self._initialized = True
             elapsed = time.time() - start_time
             logger.info(f"Connected to GPU service (device={device}) for avatar generation in {elapsed:.2f}s")
             
-        except requests.exceptions.RequestException as e:
+        except httpx.HTTPError as e:
             logger.error(f"Failed to connect to GPU service: {e}")
             raise RuntimeError(f"GPU service unavailable at {self.service_url}") from e
     
@@ -54,7 +53,7 @@ class AvatarClient:
         """Check if service is initialized"""
         return self._initialized
     
-    def generate_video(
+    async def generate_video(
         self,
         audio_path: str,
         reference_image_path: str,
@@ -91,7 +90,7 @@ class AvatarClient:
                     f"avatar_output_{int(time.time() * 1000)}.mp4"
                 )
             
-            # Call GPU service
+            # Call GPU service (ASYNC - doesn't block event loop!)
             payload = {
                 "audio_path": audio_path,
                 "reference_image": reference_image_path,
@@ -99,10 +98,9 @@ class AvatarClient:
                 "enhancer": enhancer
             }
             
-            response = requests.post(
+            response = await self._client.post(
                 f"{self.service_url}/avatar/generate",
                 json=payload,
-                timeout=600  # 10 min timeout for video generation
             )
             response.raise_for_status()
             
@@ -125,15 +123,16 @@ class AvatarClient:
             
             return output_path, total_time_ms
             
-        except requests.exceptions.RequestException as e:
+        except httpx.HTTPError as e:
             logger.error(f"GPU service request failed: {e}")
             raise RuntimeError(f"Failed to communicate with GPU service") from e
         except Exception as e:
             logger.error(f"Avatar generation failed: {e}", exc_info=True)
             raise
     
-    def cleanup(self):
-        """Cleanup (no-op for HTTP client)"""
+    async def cleanup(self):
+        """Cleanup async client"""
+        await self._client.aclose()
         self._initialized = False
         logger.info("Avatar client disconnected")
 
