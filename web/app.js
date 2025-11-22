@@ -459,18 +459,11 @@ async function playVideoQueue() {
         avatarVideo.load();
         console.log(`🔄 [PERF] [SEQ=${chunk.seq || 'N/A'}] Video load() called at t=${((loadStart - chunkStartTime) / 1000).toFixed(3)}s`);
         
-        // Wait for video to be ready
+        // Wait for video to be ready (no timeout - let it take as long as needed)
         try {
             await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    console.error(`⏱️ [SEQ=${chunk.seq || 'N/A'}] Timeout waiting for video to load after 30s`);
-                    console.error(`   Current state: readyState=${avatarVideo.readyState}, networkState=${avatarVideo.networkState}`);
-                    console.error(`   Video dimensions: ${avatarVideo.videoWidth}x${avatarVideo.videoHeight}`);
-                    console.error(`   Buffered ranges: ${avatarVideo.buffered.length}`);
-                    console.error(`   Current src: ${avatarVideo.currentSrc}`);
-                    console.error(`   Error: ${avatarVideo.error ? avatarVideo.error.message : 'none'}`);
-                    reject(new Error('Video load timeout after 30s'));
-                }, 30000); // Increased to 30 seconds
+                // No timeout - browser will eventually load or error naturally
+                // Large videos over slow connections can take 60s+
                 
                 // Log progress more frequently
                 const onProgress = () => {
@@ -503,7 +496,6 @@ async function playVideoQueue() {
                 avatarVideo.addEventListener('suspend', onSuspend);
                 
                 const cleanup = () => {
-                    clearTimeout(timeout);
                     avatarVideo.removeEventListener('progress', onProgress);
                     avatarVideo.removeEventListener('loadstart', onLoadStart);
                     avatarVideo.removeEventListener('canplay', onCanPlay);
