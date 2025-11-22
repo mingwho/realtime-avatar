@@ -28,6 +28,9 @@ RUN pip install --no-cache-dir --upgrade pip wheel setuptools
 # Core web framework
 RUN pip install --no-cache-dir fastapi==0.109.0 uvicorn[standard]==0.27.0 pydantic==2.5.3 pydantic-settings==2.1.0
 
+# Gemini LLM dependencies
+RUN pip install --no-cache-dir google-cloud-aiplatform>=1.38.0 google-generativeai>=0.3.0
+
 # Core ML/Audio
 RUN pip install --no-cache-dir torch==2.1.2 torchaudio==2.1.2 'numpy<2.0.0'
 
