@@ -75,6 +75,7 @@ function setupEventListeners() {
                 if (imageSelect) imageSelect.value = 'bruce_haircut_small.jpg';
                 if (voiceSelect) voiceSelect.value = 'bruce_en_sample.wav';
             }
+            setSubtitleName();
         });
     }
     imageSelect.addEventListener('change', () => {
@@ -177,6 +178,7 @@ async function loadAssets() {
         const savedVoice = localStorage.getItem('selectedVoice');
         if (savedImage && images.includes(savedImage)) imageSelect.value = savedImage;
         if (savedVoice && voices.includes(savedVoice)) voiceSelect.value = savedVoice;
+        setSubtitleName();
     } catch (e) {
         console.error('Failed to load assets:', e);
     }
@@ -779,7 +781,8 @@ function addToTranscript(role, text) {
     
     const label = document.createElement('span');
     label.className = 'message-label';
-    label.textContent = role === 'user' ? 'You:' : role === 'assistant' ? 'Bruce:' : 'System:';
+    const assistantName = getAssistantName();
+    label.textContent = role === 'user' ? 'You:' : role === 'assistant' ? `${assistantName}:` : 'System:';
     
     const content = document.createElement('p');
     content.className = 'message-content';
@@ -792,6 +795,27 @@ function addToTranscript(role, text) {
     
     // Scroll to bottom
     transcript.scrollTop = transcript.scrollHeight;
+}
+
+function getAssistantName() {
+    try {
+        const avatarId = localStorage.getItem('selectedAvatarId');
+        if (avatarId === 'ming') return 'Ming';
+        if (avatarId === 'bruce') return 'Bruce';
+        const img = imageSelect && imageSelect.value ? imageSelect.value.toLowerCase() : '';
+        const voice = voiceSelect && voiceSelect.value ? voiceSelect.value.toLowerCase() : '';
+        if (img.includes('ming') || voice.includes('ming')) return 'Ming';
+        return 'Bruce';
+    } catch {
+        return 'Bruce';
+    }
+}
+
+function setSubtitleName() {
+    const el = document.getElementById('subtitle');
+    if (!el) return;
+    const name = getAssistantName();
+    el.textContent = `Talk to ${name}'s AI Avatar`;
 }
 
 // Clear Conversation
