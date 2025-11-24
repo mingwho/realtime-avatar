@@ -3,7 +3,11 @@ Full-stack conversational AI avatar with voice input, intelligent responses, and
 
 https://github.com/user-attachments/assets/6b12fe94-5490-4aa5-a6ca-6c120d83b90b
 
-[![Watch the video](https://github.com/user-attachments/assets/b7fba283-f386-4fa6-a19d-fc03effb18a0)]([https://www.youtube.com/watch?v=VIDEO_ID](https://www.youtube.com/watch?v=T3LivQ4Y77Y))
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=T3LivQ4Y77Y">
+    <img src="https://img.youtube.com/vi/T3LivQ4Y77Y/maxresdefault.jpg" width="600">
+  </a>
+</p>
 ```
 +------------------------- Local Machine -------------------------+
 |  Web UI (Nginx) - port 8080                                      |
