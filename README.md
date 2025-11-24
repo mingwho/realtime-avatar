@@ -1,11 +1,14 @@
 # Realtime Avatar: Interactive Conversational Avatar
 Full-stack conversational AI avatar with voice input, intelligent responses, and realistic video synthesis.
 
-https://github.com/user-attachments/assets/c406532b-100b-4d00-b541-79c797510cae
+https://github.com/user-attachments/assets/6b12fe94-5490-4aa5-a6ca-6c120d83b90b
+<img width="859" height="578" alt="Screenshot 2025-11-24 at 4 28 17 AM" src="https://github.com/user-attachments/assets/b7fba283-f386-4fa6-a19d-fc03effb18a0" />
 
+https://www.youtube.com/watch?v=T3LivQ4Y77Y
+[![Watch the video](https://github.com/user-attachments/assets/b7fba283-f386-4fa6-a19d-fc03effb18a0)]([https://www.youtube.com/watch?v=VIDEO_ID](https://www.youtube.com/watch?v=T3LivQ4Y77Y))
 ```
 +------------------------- Local Machine -------------------------+
-|  Web UI (Nginx) - port 8080                                     |
+|  Web UI (Nginx) - port 8080                                      |
 |  User (browser)                                                  |
 |  - record/playback, transcript                                   |
 +-----------------------------------------------------------------+
@@ -19,19 +22,19 @@ https://github.com/user-attachments/assets/c406532b-100b-4d00-b541-79c797510cae
 |  | Runtime API (FastAPI)  |                                     |
 |  | port 8000              |                                     |
 |  | - ASR (Whisper, CPU)   |                                     |
-|  | - LLM (Qwen CPU /      |                                     |
-|  |   Gemini API)          |                                     |
+|  | - LLM (Gemini API)     |                                     |
+|  |                        |                                     |
 |  +-----------+------------+                                     |
 |              | HTTP (req)                                       |
-|              v                                                 |
+|              v                                                  |
 |  +------------------------+       +---------------------------+ |
-|  | GPU Service (FastAPI)  |       | Outputs (instance-local) | |
-|  | port 8001              |       | /tmp/gpu-service-output  | |
-|  | - XTTS‑v2 (GPU)        | ----> | speech.wav, video.mp4    | |
+|  | GPU Service (FastAPI)  |       | Outputs (instance-local) |  |
+|  | port 8001              |       | /tmp/gpu-service-output  |  |
+|  | - XTTS‑v2 (GPU)        | ----> | speech.wav, video.mp4    |  |
 |  | - Ditto + TensorRT     |       +---------------------------+ |
 |  +-----------^------------+                                     |
-|              | HTTP (resp)                                       |
-|              +---------------------> Runtime API                 |
+|              | HTTP (resp)                                      |
+|              +---------------------> Runtime API                |
 +-----------------------------------------------------------------+
 
 ```
