@@ -2,9 +2,7 @@
 Full-stack conversational AI avatar with voice input, intelligent responses, and realistic video synthesis.
 
 https://github.com/user-attachments/assets/6b12fe94-5490-4aa5-a6ca-6c120d83b90b
-<img width="859" height="578" alt="Screenshot 2025-11-24 at 4 28 17 AM" src="https://github.com/user-attachments/assets/b7fba283-f386-4fa6-a19d-fc03effb18a0" />
 
-https://www.youtube.com/watch?v=T3LivQ4Y77Y
 [![Watch the video](https://github.com/user-attachments/assets/b7fba283-f386-4fa6-a19d-fc03effb18a0)]([https://www.youtube.com/watch?v=VIDEO_ID](https://www.youtube.com/watch?v=T3LivQ4Y77Y))
 ```
 +------------------------- Local Machine -------------------------+
