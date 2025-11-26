@@ -6,15 +6,73 @@ Generates and streams video chunks as they're produced for lower perceived laten
 import logging
 import time
 import asyncio
+import os
 from pathlib import Path
 from typing import Optional, Dict, Any, List, AsyncGenerator
 import re
 
 from models.asr import ASRModel
 from models.llm import LLMModel
+from models.llm_gemini import GeminiClient
 from pipelines.phase1_script import Phase1Pipeline
+from config import settings
 
 logger = logging.getLogger(__name__)
+
+
+async def ensure_video_fully_written(video_path: str, max_wait: float = 3.0) -> bool:
+    """
+    Wait for video file to be fully written with stable size and fsync.
+    
+    This prevents race conditions where the video file exists but isn't fully flushed to disk,
+    causing the video endpoint to serve partial/corrupted files.
+    
+    Args:
+        video_path: Absolute path to video file
+        max_wait: Maximum time to wait in seconds
+        
+    Returns:
+        True if file is ready, False if timeout
+    """
+    wait_start = time.time()
+    
+    # Wait for file to exist
+    while not os.path.exists(video_path):
+        if time.time() - wait_start > max_wait:
+            logger.warning(f"[FSYNC] Timeout waiting for file to exist: {video_path}")
+            return False
+        await asyncio.sleep(0.05)  # 50ms check interval
+    
+    # Wait for stable file size (check twice 100ms apart)
+    prev_size = -1
+    curr_size = os.path.getsize(video_path)
+    stable_checks = 0
+    required_stable_checks = 2  # File size must be stable for 2 checks
+    
+    while stable_checks < required_stable_checks:
+        if time.time() - wait_start > max_wait:
+            logger.warning(f"[FSYNC] Timeout waiting for stable size: {video_path} (curr_size={curr_size})")
+            return False
+        
+        await asyncio.sleep(0.1)  # 100ms between checks
+        prev_size = curr_size
+        curr_size = os.path.getsize(video_path)
+        
+        if prev_size == curr_size:
+            stable_checks += 1
+        else:
+            stable_checks = 0  # Reset if size changed
+    
+    # Force fsync to ensure file is on disk
+    try:
+        with open(video_path, 'rb') as f:
+            os.fsync(f.fileno())
+    except Exception as e:
+        logger.warning(f"[FSYNC] fsync failed for {video_path}: {e}")
+    
+    wait_time = time.time() - wait_start
+    logger.info(f"[FSYNC] File ready: {os.path.basename(video_path)} (waited {wait_time:.3f}s, size={curr_size}, stable_checks={required_stable_checks})")
+    return True
 
 
 class StreamingConversationPipeline:
@@ -61,6 +119,7 @@ class StreamingConversationPipeline:
         # Models (lazy loaded)
         self.asr_model: Optional[ASRModel] = None
         self.llm_model: Optional[LLMModel] = None
+        self.gemini_client: Optional[GeminiClient] = None
         self.phase1_pipeline: Optional[Phase1Pipeline] = None
 
         # System prompt for conversational LLM
@@ -82,15 +141,30 @@ Be natural, warm, and engaging in your communication style."""
             self.asr_model = ASRModel(device=self.device, compute_type=compute_type)
             self.asr_model.initialize()
 
-        # Initialize LLM (optional)
-        if self.llm_model is None:
-            try:
-                logger.info("Loading LLM model (Qwen-2.5-7B)...")
-                self.llm_model = LLMModel()
-                self.llm_model.initialize()
-            except Exception as e:
-                logger.warning(f"Failed to load LLM, will use fallback: {e}")
-                self.llm_model = None
+        # Initialize LLM (Gemini API or local Qwen)
+        if settings.use_gemini_llm:
+            if self.gemini_client is None:
+                try:
+                    logger.info(f"Initializing Gemini LLM: {settings.gemini_model}")
+                    self.gemini_client = GeminiClient(
+                        model_name=settings.gemini_model,
+                        project_id=settings.gemini_project,
+                        location=settings.gemini_location
+                    )
+                    self.gemini_client.initialize()
+                except Exception as e:
+                    logger.warning(f"Failed to load Gemini, will use fallback: {e}")
+                    self.gemini_client = None
+        else:
+            # Use local Qwen model
+            if self.llm_model is None:
+                try:
+                    logger.info("Loading LLM model (Qwen-2.5-7B)...")
+                    self.llm_model = LLMModel()
+                    self.llm_model.initialize()
+                except Exception as e:
+                    logger.warning(f"Failed to load LLM, will use fallback: {e}")
+                    self.llm_model = None
 
         # Initialize Phase1Pipeline
         if self.phase1_pipeline is None:
@@ -100,13 +174,15 @@ Be natural, warm, and engaging in your communication style."""
         elapsed = time.time() - start_time
         logger.info(f"Streaming pipeline initialized in {elapsed:.2f}s")
 
-    def split_into_sentences(self, text: str) -> List[str]:
+    def split_into_sentences(self, text: str, max_chars: int = 120) -> List[str]:
         """
         Split text into sentence chunks for streaming.
         Handles common abbreviations like D.C., Mr., Dr., etc.
+        Splits on periods, semicolons, and enforces max character limit.
         
         Args:
             text: Text to split
+            max_chars: Maximum characters per chunk (default 120 for ~8-10s video)
             
         Returns:
             List of sentence strings
@@ -136,8 +212,9 @@ Be natural, warm, and engaging in your communication style."""
                 protected_text = protected_text.replace(abbr, temp)
                 replacements[temp] = abbr
         
-        # Split on sentence boundaries (.!?) followed by space or end
-        sentences = re.split(r'([.!?]+(?:\s+|$))', protected_text)
+        # Split on sentence boundaries (.!?;) followed by space or end
+        # Semicolons are included to handle poetry and complex prose
+        sentences = re.split(r'([.!?;]+(?:\s+|$))', protected_text)
         
         # Rejoin sentences with their punctuation
         chunks = []
@@ -162,8 +239,63 @@ Be natural, warm, and engaging in your communication style."""
         # Filter out empty chunks and very short ones (< 3 words)
         chunks = [c for c in chunks if len(c.split()) >= 3]
         
-        logger.info(f"Split text into {len(chunks)} chunks: {[c[:40] + '...' for c in chunks]}")
-        return chunks
+        # BUFFERING STRATEGY: Combine first chunks to reach ~120 chars
+        # This gives pipeline time to build buffer while first video plays
+        if len(chunks) >= 2:
+            combined_first = chunks[0]
+            chunks_combined = 1
+            
+            # Keep adding chunks until we reach ~120 chars
+            while chunks_combined < len(chunks) and len(combined_first) < 120:
+                next_chunk = chunks[chunks_combined]
+                if len(combined_first) + len(next_chunk) + 1 <= 125:  # +1 for space, 125 hard limit
+                    combined_first += ' ' + next_chunk
+                    chunks_combined += 1
+                else:
+                    break
+            
+            # Replace first N chunks with combined version
+            if chunks_combined > 1:
+                chunks = [combined_first] + chunks[chunks_combined:]
+                logger.info(f"BUFFERING: Combined first {chunks_combined} chunks into one ({len(combined_first)} chars)")
+        
+        # Enforce max character limit by splitting long chunks
+        # First chunk already combined above, remaining chunks use 120 char limit
+        final_chunks = []
+        for idx, chunk in enumerate(chunks):
+            # First chunk was already combined to ~120 chars, keep as-is if reasonable
+            if idx == 0 and len(chunk) <= 125:
+                final_chunks.append(chunk)
+            elif len(chunk) <= max_chars:
+                final_chunks.append(chunk)
+            else:
+                # Split long chunk at word boundaries
+                words = chunk.split()
+                current_chunk = []
+                current_length = 0
+                
+                for word in words:
+                    word_length = len(word) + 1  # +1 for space
+                    if current_length + word_length > max_chars and current_chunk:
+                        # Flush current chunk
+                        final_chunks.append(' '.join(current_chunk))
+                        current_chunk = [word]
+                        current_length = len(word)
+                    else:
+                        current_chunk.append(word)
+                        current_length += word_length
+                
+                # Add remaining words
+                if current_chunk:
+                    final_chunks.append(' '.join(current_chunk))
+        
+        # Log chunks with buffer indication
+        chunk_info = []
+        for i, c in enumerate(final_chunks):
+            label = "BUFFER" if i == 0 else "NORMAL"
+            chunk_info.append(f'[{label}] "{c[:40]}..." ({len(c)} chars)')
+        logger.info(f"Split text into {len(final_chunks)} chunks: {chunk_info}")
+        return final_chunks
 
     async def generate_chunk(
         self,
@@ -206,7 +338,19 @@ Be natural, warm, and engaging in your communication style."""
             result["chunk_time"] = chunk_time
             result["text_chunk"] = text_chunk
             
-            logger.info(f"[{chunk_id}] Chunk generated in {chunk_time:.2f}s")
+            # Ensure video file is fully written to disk before returning
+            video_path = result.get("video_path")
+            if video_path:
+                fsync_start = time.time()
+                file_ready = await ensure_video_fully_written(video_path, max_wait=3.0)
+                fsync_time = time.time() - fsync_start
+                
+                if not file_ready:
+                    logger.warning(f"[{chunk_id}] Video file sync timeout after {fsync_time:.3f}s: {video_path}")
+                else:
+                    logger.info(f"[{chunk_id}] Video file verified (fsync took {fsync_time:.3f}s)")
+            
+            logger.info(f"[{chunk_id}] Chunk generated in {chunk_time:.2f}s (total with fsync: {time.time() - chunk_start:.2f}s)")
             return result
             
         except Exception as e:
@@ -278,11 +422,15 @@ Be natural, warm, and engaging in your communication style."""
             # Step 2: Generate LLM response
             llm_start = time.time()
             
-            if self.llm_model is None:
+            # Check which LLM to use (Gemini or local)
+            llm_available = self.gemini_client or self.llm_model
+            
+            if not llm_available:
                 # Fallback: echo user text
                 response_text = user_text
                 fallback = True
             else:
+<<<<<<< HEAD
                 if conversation_history:
                     response_text = self.llm_model.generate_with_history(
                         messages=conversation_history,
@@ -296,6 +444,37 @@ Be natural, warm, and engaging in your communication style."""
                         max_new_tokens=150,
                     )
                 fallback = False
+=======
+                # Use Gemini if available, otherwise use local Qwen
+                if self.gemini_client:
+                    if conversation_history:
+                        response_text = self.gemini_client.generate_with_history(
+                            prompt=user_text,
+                            conversation_history=conversation_history,
+                            max_tokens=150,
+                        )
+                    else:
+                        response_text = self.gemini_client.generate_response(
+                            prompt=user_text,
+                            max_tokens=150,
+                        )
+                    fallback = False
+                else:
+                    # Use local LLM
+                    if conversation_history:
+                        response_text = self.llm_model.generate_with_history(
+                            messages=conversation_history,
+                            system_prompt=self.system_prompt,
+                            max_new_tokens=150,
+                        )
+                    else:
+                        response_text = self.llm_model.generate_response(
+                            prompt=user_text,
+                            system_prompt=self.system_prompt,
+                            max_new_tokens=150,
+                        )
+                    fallback = False
+>>>>>>> upstream/main
             
             llm_time = time.time() - llm_start
             

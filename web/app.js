@@ -17,6 +17,7 @@ let isProcessing = false;
 let currentEventSource = null;
 let videoQueue = [];
 let isPlayingQueue = false;
+let isStreamComplete = false;
 
 // DOM Elements
 const recordBtn = document.getElementById('recordBtn');
@@ -344,6 +345,9 @@ async function processStreamingConversation(audioBlob) {
     let chunkCount = 0;
     const startTime = Date.now();
     
+    // Reset stream completion flag for new conversation
+    isStreamComplete = false;
+    
     // Upload audio and get streaming response
     const response = await fetch(`${API_BASE_URL}/api/v1/conversation/stream`, {
         method: 'POST',
@@ -356,9 +360,9 @@ async function processStreamingConversation(audioBlob) {
     
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
+    let sseReaderForClosing = reader; // Store reference for closing SSE before video load
     
     let buffer = '';
-    let shouldCloseStream = false;  // Flag to close stream after chunk 0
     
     // Process stream in real-time
     while (true) {
@@ -366,13 +370,6 @@ async function processStreamingConversation(audioBlob) {
         
         if (done) {
             console.log('Stream completed');
-            break;
-        }
-        
-        // Check if we should close stream after chunk 0
-        if (shouldCloseStream) {
-            console.log('🔌 Closing stream after chunk 0 to free connection');
-            await reader.cancel();
             break;
         }
         
@@ -391,7 +388,13 @@ async function processStreamingConversation(audioBlob) {
             const event = parseSSE(eventText);
             if (!event) continue;
             
-            console.log(`[${(Date.now() - startTime) / 1000}s] SSE Event:`, event.type);
+            // Log sequence number for all events (if present)
+            const eventSeq = event.data.seq;
+            const serverTimestamp = event.data.server_timestamp;
+            const clientReceiveTime = Date.now() / 1000; // seconds
+            const networkLatency = serverTimestamp ? ((clientReceiveTime - serverTimestamp) * 1000).toFixed(1) : 'N/A';
+            
+            console.log(`[${(Date.now() - startTime) / 1000}s] SSE Event:`, event.type, `seq=${eventSeq}, latency=${networkLatency}ms`);
             
             // Process event immediately
             switch (event.type) {
@@ -420,8 +423,8 @@ async function processStreamingConversation(audioBlob) {
                     const videoUrl = baseUrl.includes('?') ? `${baseUrl}&t=${receiveTime}` : `${baseUrl}?t=${receiveTime}`;
                     const chunkTime = event.data.chunk_time;
                     
-                    console.log(`📨 [PERF] Chunk ${chunkIndex} SSE event received at t=${elapsedTime.toFixed(2)}s (arrival #${chunkCount})`);
-                    console.log(`   Generated in: ${chunkTime.toFixed(2)}s`);
+                    console.log(`📨 [SEQ=${eventSeq}] Chunk ${chunkIndex} SSE event received at t=${elapsedTime.toFixed(2)}s (arrival #${chunkCount})`);
+                    console.log(`   Generated in: ${chunkTime.toFixed(2)}s, Network latency: ${networkLatency}ms`);
                     console.log(`   Video URL: ${event.data.video_url}`);
                     
                     // Add all chunks directly to queue without preloading
@@ -430,18 +433,14 @@ async function processStreamingConversation(audioBlob) {
                         url: videoUrl,
                         index: chunkIndex,
                         text: event.data.text_chunk,
-                        receiveTime: receiveTime
+                        receiveTime: receiveTime,
+                        seq: eventSeq
                     });
                     
                     if (chunkIndex === 0) {
                         const ttff = elapsedTime;
-                        console.log(`⚡ [PERF] TTFF: ${ttff.toFixed(2)}s - First chunk ready`);
+                        console.log(`⚡ [PERF] TTFF: ${ttff.toFixed(2)}s - First chunk ready (seq=${eventSeq})`);
                         updateStatus(`▶️ Playing chunk 0 (${ttff.toFixed(1)}s TTFF)`, 'loading');
-                        
-                        // Mark to close stream after processing current buffer
-                        // Browser connection limit (6 per domain) blocks video loading if stream is open
-                        console.log(`🔌 Will close stream after chunk 0 to allow video downloads`);
-                        shouldCloseStream = true;
                     } else {
                         updateStatus(`Chunk ${chunkIndex} (${chunkTime.toFixed(1)}s)`, 'loading');
                     }
@@ -462,6 +461,7 @@ async function processStreamingConversation(audioBlob) {
                     const totalTime = event.data.total_time;
                     updateStatus(`✅ Complete (${totalTime.toFixed(1)}s, ${chunkCount} chunks)`, 'ready');
                     console.log(`Stream complete: ${totalTime.toFixed(1)}s total, ${chunkCount} chunks`);
+                    isStreamComplete = true;
                     
                     // Stream already closed via reader.cancel() if needed
                     
@@ -576,7 +576,14 @@ async function playVideoQueue() {
     isPlayingQueue = true;
     console.log('▶️ Starting video queue playback...');
     
-    while (videoQueue.length > 0) {
+    while (videoQueue.length > 0 || !isStreamComplete) {
+        // If queue is empty but stream not complete, wait for next chunk
+        if (videoQueue.length === 0) {
+            console.log('⏳ Queue empty but stream not complete, waiting 100ms for next chunk...');
+            await new Promise(resolve => setTimeout(resolve, 100));
+            continue;
+        }
+        
         // Sort queue by chunk index to ensure correct playback order
         videoQueue.sort((a, b) => a.index - b.index);
         
@@ -584,7 +591,7 @@ async function playVideoQueue() {
         const chunkStartTime = Date.now();
         const timeSinceReceive = (chunkStartTime - chunk.receiveTime) / 1000;
         
-        console.log(`\n🎬 [PERF] Playing chunk ${chunk.index}:`);
+        console.log(`\n🎬 [SEQ=${chunk.seq || 'N/A'}] Playing chunk ${chunk.index}:`);
         console.log(`   Text: "${chunk.text.substring(0, 60)}..."`);
         console.log(`   URL: ${chunk.url}`);
         console.log(`   Queue remaining: ${videoQueue.length}`);
@@ -606,7 +613,7 @@ async function playVideoQueue() {
         // Now set new video source
         const sourceSetStart = Date.now();
         videoSource.src = chunk.url;
-        console.log(`📺 Video source set to: ${chunk.url}`);
+        console.log(`📺 [SEQ=${chunk.seq || 'N/A'}] Video source set to: ${chunk.url}`);
         
         // Show video, hide placeholder
         videoPlaceholder.style.display = 'none';
@@ -616,20 +623,13 @@ async function playVideoQueue() {
         // Load the new video
         const loadStart = Date.now();
         avatarVideo.load();
-        console.log('🔄 [PERF] Video load() called at t=' + ((loadStart - chunkStartTime) / 1000).toFixed(3) + 's');
+        console.log(`🔄 [PERF] [SEQ=${chunk.seq || 'N/A'}] Video load() called at t=${((loadStart - chunkStartTime) / 1000).toFixed(3)}s`);
         
-        // Wait for video to be ready
+        // Wait for video to be ready (no timeout - let it take as long as needed)
         try {
             await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    console.error(`⏱️ Timeout waiting for video to load after 30s`);
-                    console.error(`   Current state: readyState=${avatarVideo.readyState}, networkState=${avatarVideo.networkState}`);
-                    console.error(`   Video dimensions: ${avatarVideo.videoWidth}x${avatarVideo.videoHeight}`);
-                    console.error(`   Buffered ranges: ${avatarVideo.buffered.length}`);
-                    console.error(`   Current src: ${avatarVideo.currentSrc}`);
-                    console.error(`   Error: ${avatarVideo.error ? avatarVideo.error.message : 'none'}`);
-                    reject(new Error('Video load timeout after 30s'));
-                }, 30000); // Increased to 30 seconds
+                // No timeout - browser will eventually load or error naturally
+                // Large videos over slow connections can take 60s+
                 
                 // Log progress more frequently
                 const onProgress = () => {
@@ -662,7 +662,6 @@ async function playVideoQueue() {
                 avatarVideo.addEventListener('suspend', onSuspend);
                 
                 const cleanup = () => {
-                    clearTimeout(timeout);
                     avatarVideo.removeEventListener('progress', onProgress);
                     avatarVideo.removeEventListener('loadstart', onLoadStart);
                     avatarVideo.removeEventListener('canplay', onCanPlay);
